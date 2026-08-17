@@ -2,7 +2,9 @@
 // https://pris.ly/d/prisma-schema-migration
 
 generator client {
-  provider = "prisma-client-js"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
