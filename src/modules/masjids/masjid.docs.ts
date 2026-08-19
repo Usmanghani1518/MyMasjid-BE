@@ -4,234 +4,141 @@ import { registry } from '@/docs/openapi';
 
 extendZodWithOpenApi(z);
 
-// ==================== Schemas ====================
-
-export const createMasjidSchema = z
+const apiErrorSchema = z
   .object({
-    name: z.string().min(1).describe('Masjid name'),
-    address: z.string().min(1).describe('Street address'),
-    city: z.string().min(1).describe('City'),
-    state: z.string().optional().describe('State or province'),
-    country: z.string().default('PK').describe('Country code (ISO 3166-1)'),
-    latitude: z.number().min(-90).max(90).optional().describe('Latitude coordinate'),
-    longitude: z.number().min(-180).max(180).optional().describe('Longitude coordinate'),
-    description: z.string().optional().describe('Brief description of the masjid'),
+    success: z.literal(false),
+    message: z.string(),
+    data: z.nullable(z.unknown()),
+    errors: z.array(z.object({ field: z.string().optional(), code: z.string(), message: z.string() })),
   })
-  .openapi('CreateMasjidRequest', {
-    description: 'Create a new masjid',
-    example: {
-      name: 'Masjid Al-Noor',
-      address: '123 Main Street',
-      city: 'Lahore',
-      state: 'Punjab',
-      country: 'PK',
-      latitude: 31.5204,
-      longitude: 74.3587,
-      description: 'A community masjid in the heart of Lahore',
-    },
-  });
+  .openapi('ApiErrorResponse');
 
-export const masjidResponseSchema = z
+const trusteeResponseSchema = z
+  .object({
+    id: z.string().uuid(),
+    fullName: z.string(),
+    email: z.string().email(),
+    phoneNumber: z.string().nullable(),
+    role: z.string(),
+    idType: z.string().nullable(),
+    idNumberMasked: z.string().nullable(),
+  })
+  .openapi('TrusteeResponse');
+
+const masjidResponseSchema = z
   .object({
     id: z.string().uuid(),
     name: z.string(),
-    address: z.string(),
-    city: z.string(),
+    owner: z.object({ id: z.string().uuid(), email: z.string().email(), name: z.string().nullable(), role: z.string() }),
+    registrationNumber: z.string().nullable(),
+    organizationType: z.string().nullable(),
+    charityNumber: z.string().nullable(),
+    email: z.string().nullable(),
+    phoneNumber: z.string().nullable(),
+    address: z.string().nullable(),
+    city: z.string().nullable(),
     state: z.string().nullable(),
     country: z.string(),
-    latitude: z.number().nullable(),
-    longitude: z.number().nullable(),
+    website: z.string().nullable(),
+    establishedYear: z.number().nullable(),
     description: z.string().nullable(),
-    isActive: z.boolean(),
+    missionStatement: z.string().nullable(),
+    operatingHours: z.string().nullable(),
+    services: z.array(z.string()),
+    handlesZakat: z.boolean(),
+    handlesGiftAid: z.boolean(),
+    hasCharityRegistration: z.boolean(),
+    acceptsOnlineDonations: z.boolean(),
+    complianceNotes: z.string().nullable(),
+    registrationStep: z.number(),
+    status: z.string(),
+    submittedAt: z.string().datetime().nullable(),
+    reviewedAt: z.string().datetime().nullable(),
+    reviewNote: z.string().nullable(),
+    denialReasons: z.nullable(z.unknown()),
+    emailVerified: z.boolean(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
+    trustees: z.array(trusteeResponseSchema),
+    documents: z.array(z.object({ id: z.string().uuid(), originalName: z.string(), mimeType: z.string(), size: z.number(), purpose: z.string().nullable() })),
   })
-  .openapi('MasjidResponse');
+  .openapi('MasjidResponse', { description: 'Masjid registration draft (safe fields)' });
 
-export const masjidListResponseSchema = z
+const orgProfileRequestSchema = z
   .object({
-    data: z.array(masjidResponseSchema),
-    total: z.number(),
-    page: z.number(),
-    limit: z.number(),
+    description: z.string().min(10),
+    missionStatement: z.string().min(10),
+    operatingHours: z.string().optional(),
   })
-  .openapi('MasjidListResponse');
+  .openapi('MasjidOrganizationProfileRequest');
 
-export const errorResponseSchema = z
+const servicesComplianceRequestSchema = z
   .object({
-    status: z.string(),
-    message: z.string(),
+    services: z.array(z.string()).min(1),
+    handlesZakat: z.boolean(),
+    handlesGiftAid: z.boolean(),
+    hasCharityRegistration: z.boolean(),
+    acceptsOnlineDonations: z.boolean(),
+    complianceNotes: z.string().optional(),
   })
-  .openapi('MasjidErrorResponse');
+  .openapi('MasjidServicesComplianceRequest');
 
-// ==================== Routes ====================
+const trusteesRequestSchema = z
+  .object({
+    trustees: z.array(
+      z.object({
+        fullName: z.string(),
+        email: z.string().email(),
+        phoneNumber: z.string().optional(),
+        role: z.string(),
+        idType: z.string().optional(),
+        idNumber: z.string().optional(),
+      }),
+    ),
+  })
+  .openapi('MasjidTrusteesRequest');
+
+const registerMasjidStep = (
+  step: 'organization-profile' | 'services-compliance' | 'trustees' | 'submit' | 'resubmit',
+  summary: string,
+  requestBody?: { content: { 'application/json': { schema: z.ZodSchema } } },
+) => {
+  registry.registerPath({
+    method: 'post',
+    path: `/registration/masjids/${step}`,
+    tags: ['Masjid Registration'],
+    summary,
+    security: [{ bearerAuth: [] }],
+    request: requestBody ? { body: requestBody } : undefined,
+    responses: {
+      200: { description: summary },
+      400: { description: 'Validation error', content: { 'application/json': { schema: apiErrorSchema } } },
+      401: { description: 'Not authenticated', content: { 'application/json': { schema: apiErrorSchema } } },
+      409: { description: 'Conflict / step order', content: { 'application/json': { schema: apiErrorSchema } } },
+    },
+  });
+};
 
 registry.registerPath({
   method: 'get',
-  path: '/masjids',
-  tags: ['Masjids'],
-  summary: 'List all masjids',
-  description: 'Get a paginated list of all registered masjids (public endpoint)',
-  security: [],
-  request: {
-    query: z.object({
-      page: z.coerce.number().min(1).default(1).optional(),
-      limit: z.coerce.number().min(1).max(100).default(20).optional(),
-      city: z.string().optional().describe('Filter by city'),
-      country: z.string().optional().describe('Filter by country code'),
-      search: z.string().optional().describe('Search by name or address'),
-    }),
-  },
-  responses: {
-    200: {
-      description: 'List of masjids',
-      content: {
-        'application/json': {
-          schema: masjidListResponseSchema,
-        },
-      },
-    },
-  },
-});
-
-registry.registerPath({
-  method: 'get',
-  path: '/masjids/{id}',
-  tags: ['Masjids'],
-  summary: 'Get masjid by ID',
-  description: 'Get detailed information about a specific masjid (public endpoint)',
-  security: [],
-  request: {
-    params: z.object({
-      id: z.string().uuid(),
-    }),
-  },
-  responses: {
-    200: {
-      description: 'Masjid details',
-      content: {
-        'application/json': {
-          schema: masjidResponseSchema,
-        },
-      },
-    },
-    404: {
-      description: 'Masjid not found',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-  },
-});
-
-registry.registerPath({
-  method: 'post',
-  path: '/masjids',
-  tags: ['Masjids'],
-  summary: 'Create a masjid',
-  description: 'Register a new masjid (requires admin authentication)',
+  path: '/registration/masjids/me',
+  tags: ['Masjid Registration'],
+  summary: 'Get current masjid registration draft',
   security: [{ bearerAuth: [] }],
-  request: {
-    body: {
-      content: {
-        'application/json': {
-          schema: createMasjidSchema,
-        },
-      },
-    },
-  },
   responses: {
-    201: {
-      description: 'Masjid created successfully',
-      content: {
-        'application/json': {
-          schema: masjidResponseSchema,
-        },
-      },
-    },
-    400: {
-      description: 'Validation error',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-    401: {
-      description: 'Not authenticated',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
+    200: { description: 'Current draft', content: { 'application/json': { schema: masjidResponseSchema } } },
+    401: { description: 'Not authenticated', content: { 'application/json': { schema: apiErrorSchema } } },
   },
 });
 
-registry.registerPath({
-  method: 'patch',
-  path: '/masjids/{id}',
-  tags: ['Masjids'],
-  summary: 'Update a masjid',
-  description: 'Update masjid details (requires admin authentication)',
-  security: [{ bearerAuth: [] }],
-  request: {
-    params: z.object({
-      id: z.string().uuid(),
-    }),
-    body: {
-      content: {
-        'application/json': {
-          schema: createMasjidSchema.partial(),
-        },
-      },
-    },
-  },
-  responses: {
-    200: {
-      description: 'Masjid updated successfully',
-      content: {
-        'application/json': {
-          schema: masjidResponseSchema,
-        },
-      },
-    },
-    404: {
-      description: 'Masjid not found',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-  },
+registerMasjidStep('organization-profile', 'Step 2 — Save organization profile', {
+  content: { 'application/json': { schema: orgProfileRequestSchema } },
 });
-
-registry.registerPath({
-  method: 'delete',
-  path: '/masjids/{id}',
-  tags: ['Masjids'],
-  summary: 'Delete a masjid',
-  description: 'Soft-delete a masjid (requires admin authentication)',
-  security: [{ bearerAuth: [] }],
-  request: {
-    params: z.object({
-      id: z.string().uuid(),
-    }),
-  },
-  responses: {
-    204: {
-      description: 'Masjid deleted successfully',
-    },
-    404: {
-      description: 'Masjid not found',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-  },
+registerMasjidStep('services-compliance', 'Step 3 — Save services and compliance flags', {
+  content: { 'application/json': { schema: servicesComplianceRequestSchema } },
 });
+registerMasjidStep('trustees', 'Step 4 — Replace trustees', {
+  content: { 'application/json': { schema: trusteesRequestSchema } },
+});
+registerMasjidStep('submit', 'Step 5 — Submit for review');
+registerMasjidStep('resubmit', 'Reopen a denied application for editing');

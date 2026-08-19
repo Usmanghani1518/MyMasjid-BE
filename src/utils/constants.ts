@@ -1,0 +1,69 @@
+/** Allowed values for list-type registration fields (validated server-side). */
+
+export const PASSWORD_MIN = 8;
+export const PASSWORD_MAX = 72;
+
+export const ID_TYPES = ['PASSPORT', 'NATIONAL_ID', 'DRIVER_LICENSE'] as const;
+
+export const DONOR_INTERESTS = [
+  'ZAKAT',
+  'SADAQAH',
+  'WATER_WELLS',
+  'FOOD_DISTRIBUTION',
+  'EDUCATION',
+  'MASJID_UPKEEP',
+  'RAMADAN',
+  'QAURBANI',
+  'ORPHAN_SUPPORT',
+  'GENERAL',
+] as const;
+
+export const VOLUNTEER_SKILLS = [
+  'COOKING',
+  'TEACHING',
+  'IT_SUPPORT',
+  'MEDICAL',
+  'DRIVING',
+  'EVENT_MANAGEMENT',
+  'SOCIAL_MEDIA',
+  'MAINTENANCE',
+  'FUNDRAISING',
+  'TRANSLATION',
+] as const;
+
+export const AVAILABILITY_DAYS = [
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+  'SUNDAY',
+] as const;
+
+export const AVAILABILITY_TIMES = ['MORNING', 'AFTERNOON', 'EVENING', 'NIGHT'] as const;
+
+export const MASJID_TYPES = ['MASJID', 'MADRASSA', 'COMMUNITY_CENTER', 'ISLAMIC_SCHOOL'] as const;
+
+export const MASJID_SERVICES = [
+  'FIVE_DAILY_PRAYERS',
+  'JUMMAH',
+  'TAFSEER',
+  'QURAN_CLASSES',
+  'MARRIAGE_SERVICES',
+  'FUNERAL_SERVICES',
+  'ZAKAT_DISTRIBUTION',
+  'FOOD_BANK',
+  'WATER_WELL',
+  'COMMUNITY_EVENTS',
+  'LECTURES',
+  'MADRASSA',
+] as const;
+
+export const TRUSTEE_ROLES = ['CHAIR', 'TREASURER', 'SECRETARY', 'TRUSTEE'] as const;
+
+/** Basic country-code check (2-letter uppercase, ISO 3166-1 alpha-2). */
+export const COUNTRY_CODE_REGEX = /^[A-Z]{2}$/;
+
+/** Phone: optional + prefix, digits, spaces, dashes. Kept permissive; validated for shape only. */
+export const PHONE_REGEX = /^\+?[0-9][0-9\s-]{6,19}$/;

@@ -32,5 +32,8 @@ coverage/
 prisma/migrations/*/migration_lock.toml
 src/generated/
 
+# Uploaded files (runtime storage)
+uploads/
+
 # Misc
 *.tsbuildinfo

@@ -11,6 +11,31 @@ datasource db {
   provider = "postgresql"
 }
 
+// ==================== Enums ====================
+
+enum Role {
+  USER
+  DONOR
+  VOLUNTEER
+  MASJID_ADMIN
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum RegistrationStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  DENIED
+  ACTIVE
+}
+
+enum OtpPurpose {
+  DONOR_REGISTRATION
+  VOLUNTEER_REGISTRATION
+  LOGIN
+}
+
 // ==================== Models ====================
 
 model User {
@@ -22,36 +47,211 @@ model User {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
-  masjids   Masjid[]
+  masjids       Masjid[]
+  donor         Donor?
+  volunteer     Volunteer?
+  refreshTokens RefreshToken[]
+  documents     UploadedDocument[]
 
   @@map("users")
 }
 
+model Donor {
+  id               String             @id @default(uuid())
+  userId           String             @unique
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName         String?
+  phoneCountryCode String?
+  phoneNumber      String?
+  address          String?
+  city             String?
+  country          String             @default("PK")
+  dateOfBirth      DateTime?
+  idType           String?
+  idNumberEnc      String?
+  interests        String[]
+  registrationStep Int                @default(0)
+  status           RegistrationStatus @default(DRAFT)
+  emailVerified    Boolean            @default(false)
+  completedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  deletedAt        DateTime?
+
+  @@map("donors")
+}
+
+model Volunteer {
+  id               String             @id @default(uuid())
+  userId           String             @unique
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName         String?
+  phoneCountryCode String?
+  phoneNumber      String?
+  address          String?
+  city             String?
+  country          String             @default("PK")
+  dateOfBirth      DateTime?
+  idType           String?
+  idNumberEnc      String?
+  bio              String?
+  skills           String[]
+  interests        String[]
+  availabilityDays String[]
+  availabilityTimes String[]
+  registrationStep Int                @default(0)
+  status           RegistrationStatus @default(DRAFT)
+  emailVerified    Boolean            @default(false)
+  completedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  deletedAt        DateTime?
+
+  @@map("volunteers")
+}
+
 model Masjid {
-  id          String   @id @default(uuid())
-  name        String
-  address     String
-  city        String
-  state       String?
-  country     String   @default("PK")
-  latitude    Float?
-  longitude   Float?
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
-  ownerId     String
-  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  // --- Institutional identity (step 1) ---
+  registrationNumber String?
+  organizationType   String?
+  charityNumber      String?
+  email              String?
+  phoneCountryCode   String?
+  phoneNumber        String?
+  address            String?
+  city               String?
+  state              String?
+  country            String   @default("PK")
+  website            String?
+  establishedYear    Int?
+  latitude           Float?
+  longitude          Float?
 
+  // --- Organization profile (step 2) ---
+  description      String?
+  missionStatement String?
+  operatingHours   String?
+
+  // --- Services & compliance flags (step 3) ---
+  services               String[]
+  handlesZakat           Boolean  @default(false)
+  handlesGiftAid         Boolean  @default(false)
+  hasCharityRegistration Boolean  @default(false)
+  acceptsOnlineDonations Boolean  @default(false)
+  complianceNotes        String?
+
+  // --- Registration workflow (steps 4-5 + review) ---
+  registrationStep Int                @default(0)
+  status           RegistrationStatus @default(DRAFT)
+  submittedAt      DateTime?
+  reviewedAt       DateTime?
+  reviewedBy       String?
+  reviewNote       String?
+  denialReasons    Json?
+  emailVerified    Boolean            @default(false)
+
+  trustees  Trustee[]
+  documents UploadedDocument[]
+
+  @@index([status])
+  @@index([ownerId])
   @@map("masjids")
 }
 
-// ==================== Enums ====================
+model Trustee {
+  id          String   @id @default(uuid())
+  masjidId    String
+  masjid      Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  fullName    String
+  email       String
+  phoneNumber String?
+  role        String
+  idType      String?
+  idNumberEnc String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-enum Role {
-  USER
-  ADMIN
-  SUPER_ADMIN
+  @@index([masjidId])
+  @@map("trustees")
+}
+
+model UploadedDocument {
+  id           String   @id @default(uuid())
+  masjidId     String?
+  masjid       Masjid?  @relation(fields: [masjidId], references: [id], onDelete: SetNull)
+  uploaderId   String
+  uploader     User     @relation(fields: [uploaderId], references: [id])
+  originalName String
+  storedName   String
+  mimeType     String
+  size         Int
+  purpose      String?
+  filePath     String
+  createdAt    DateTime @default(now())
+
+  @@index([masjidId])
+  @@map("uploaded_documents")
+}
+
+model Otp {
+  id          String     @id @default(uuid())
+  email       String
+  purpose     OtpPurpose
+  codeHash    String
+  expiresAt   DateTime
+  attempts    Int        @default(0)
+  lockUntil   DateTime?
+  resendCount Int        @default(0)
+  lastSentAt  DateTime?
+  verifiedAt  DateTime?
+  usedAt      DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([email, purpose])
+  @@map("otps")
+}
+
+model RefreshToken {
+  id              String    @id @default(uuid())
+  tokenHash       String    @unique
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt       DateTime
+  replacedByToken String?
+  revokedAt       DateTime?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actorEmail String?
+  actorRole  String?
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([action])
+  @@map("audit_logs")
 }

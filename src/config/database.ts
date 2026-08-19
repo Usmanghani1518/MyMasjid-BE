@@ -3,7 +3,19 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { config } from '@/config';
 import { logger } from '@/utils/helpers';
 
-const adapter = new PrismaPg({ connectionString: config.DATABASE_URL });
+/**
+ * The driver adapter does not honor the Prisma `?schema=` query param, so extract
+ * it explicitly. Defaults to the public schema (dev). Test runs use `?schema=test`.
+ */
+const parseSchema = (url: string): string => {
+  try {
+    return new URL(url).searchParams.get('schema') ?? 'public';
+  } catch {
+    return 'public';
+  }
+};
+
+const adapter = new PrismaPg(config.DATABASE_URL, { schema: parseSchema(config.DATABASE_URL) });
 
 const prisma = new PrismaClient({
   adapter,
