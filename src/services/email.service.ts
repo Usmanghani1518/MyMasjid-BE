@@ -6,8 +6,7 @@ import { audit, AuditActions } from '@/services/audit.service';
 import {
   renderDonorOtp,
   renderVolunteerOtp,
-  renderResendOtp,
-  renderMasjidWelcome,
+  renderPasswordResetOtp,
   renderApplicationSubmitted,
   renderApplicationApproved,
   renderApplicationDenied,
@@ -45,14 +44,26 @@ const consoleMailer: Mailer = {
   },
 };
 
-/** Production mailer built from SMTP_* env vars. */
-const smtpMailer = (): Mailer =>
-  nodemailer.createTransport({
+let cachedSmtpMailer: Mailer | null = null;
+
+const smtpMailer = (): Mailer => {
+  if (cachedSmtpMailer) return cachedSmtpMailer;
+
+  cachedSmtpMailer = nodemailer.createTransport({
     host: config.SMTP_HOST,
     port: config.SMTP_PORT ?? 587,
     secure: (config.SMTP_PORT ?? 587) === 465,
     auth: config.SMTP_USER ? { user: config.SMTP_USER, pass: config.SMTP_PASS } : undefined,
+    pool: true,
+    maxConnections: 2,
+    maxMessages: 50,
+    connectionTimeout: config.SMTP_CONNECTION_TIMEOUT_MS,
+    greetingTimeout: config.SMTP_GREETING_TIMEOUT_MS,
+    socketTimeout: config.SMTP_SOCKET_TIMEOUT_MS,
   }) as unknown as Mailer;
+
+  return cachedSmtpMailer;
+};
 
 const getMailer = (): Mailer => {
   if (testMailer) return testMailer;
@@ -70,8 +81,17 @@ export const sendMail = async (mail: OutboundMail): Promise<void> => {
   }
 };
 
+export const queueMail = (mail: OutboundMail): void => {
+  void sendMail(mail).catch((err) => {
+    logger.error({ err, to: mail.to, subject: mail.subject }, 'Queued email failed');
+  });
+};
+
 const deliver = (to: string, rendered: RenderedEmail): Promise<void> =>
   sendMail({ to, subject: rendered.subject, html: rendered.html, text: rendered.text });
+
+const queueDelivery = (to: string, rendered: RenderedEmail): void =>
+  queueMail({ to, subject: rendered.subject, html: rendered.html, text: rendered.text });
 
 // ==================== Convenience senders ====================
 
@@ -85,21 +105,35 @@ export const sendVolunteerOtpEmail = (
   props: { name: string; code: string; expiresInMinutes: number },
 ): Promise<void> => deliver(to, renderVolunteerOtp(props));
 
-export const sendResendOtpEmail = (
+export const sendPasswordResetOtpEmail = (
   to: string,
   props: { name: string; code: string; expiresInMinutes: number },
-): Promise<void> => deliver(to, renderResendOtp(props));
+): Promise<void> => deliver(to, renderPasswordResetOtp(props));
 
-export const sendMasjidWelcomeEmail = (
+export const queueDonorOtpEmail = (
   to: string,
-  props: { masjidName: string; ownerName: string; frontendUrl?: string },
-): Promise<void> =>
-  deliver(to, renderMasjidWelcome({ ...props, frontendUrl: props.frontendUrl ?? config.FRONTEND_URL }));
+  props: { name: string; code: string; expiresInMinutes: number },
+): void => queueDelivery(to, renderDonorOtp(props));
+
+export const queueVolunteerOtpEmail = (
+  to: string,
+  props: { name: string; code: string; expiresInMinutes: number },
+): void => queueDelivery(to, renderVolunteerOtp(props));
+
+export const queuePasswordResetOtpEmail = (
+  to: string,
+  props: { name: string; code: string; expiresInMinutes: number },
+): void => queueDelivery(to, renderPasswordResetOtp(props));
 
 export const sendApplicationSubmittedEmail = (
   to: string,
-  props: { masjidName: string },
+  props: { masjidName: string; referenceId?: string },
 ): Promise<void> => deliver(to, renderApplicationSubmitted(props));
+
+export const queueApplicationSubmittedEmail = (
+  to: string,
+  props: { masjidName: string; referenceId?: string },
+): void => queueDelivery(to, renderApplicationSubmitted(props));
 
 export const sendApplicationApprovedEmail = (
   to: string,

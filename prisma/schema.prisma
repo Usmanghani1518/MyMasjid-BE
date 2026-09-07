@@ -34,6 +34,7 @@ enum OtpPurpose {
   DONOR_REGISTRATION
   VOLUNTEER_REGISTRATION
   LOGIN
+  PASSWORD_RESET
 }
 
 // ==================== Models ====================
@@ -236,6 +237,20 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model PasswordReset {
+  id          String    @id @default(uuid())
+  email       String
+  tokenHash   String?
+  verifiedAt  DateTime?
+  expiresAt   DateTime?
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([email])
+  @@map("password_resets")
 }
 
 model AuditLog {

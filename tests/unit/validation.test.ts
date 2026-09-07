@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { toApiErrors, ValidationError } from '@/utils/validation';
 import { emailSchema, passwordSchema } from '@/utils/schemas';
-import { donorAccountBody, donorProfileSchema } from '@/modules/donors/donor.schemas';
+import { ErrorCodes } from '@/utils/errorCodes';
 
 describe('validation mapper', () => {
   it('maps an invalid email to INVALID_EMAIL with the field name', () => {
@@ -13,6 +13,11 @@ describe('validation mapper', () => {
   });
 
   it('maps a missing required field to FIELD_REQUIRED', () => {
+    const donorAccountBody = z.object({
+      email: z.string(),
+      password: z.string(),
+      fullName: z.string(),
+    });
     const result = donorAccountBody.safeParse({});
     const errors = toApiErrors(result.error!);
     expect(errors).toEqual(
@@ -42,6 +47,21 @@ describe('validation mapper', () => {
   });
 
   it('enforces the idType/idNumber pair on the profile step', () => {
+    const donorProfileSchema = z.object({
+      body: z.object({
+        idType: z.string().optional(),
+        idNumber: z.string().optional(),
+      }).superRefine((value, ctx) => {
+        if (value.idNumber && !value.idType) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['idType'],
+            message: 'ID type is required when ID number is provided',
+            params: { code: ErrorCodes.INVALID_ID_TYPE },
+          });
+        }
+      }),
+    });
     const result = donorProfileSchema.safeParse({ body: { idNumber: '3520212345678' } });
     const errors = toApiErrors(result.error!);
     expect(errors.some((e) => e.field === 'idType' && e.code === 'INVALID_ID_TYPE')).toBe(true);

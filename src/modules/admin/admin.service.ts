@@ -6,7 +6,7 @@ import { ErrorCodes } from '@/utils/errorCodes';
 import { parsePagination, buildPaginationMeta, Paginated, toOrderBy } from '@/utils/pagination';
 import { audit, AuditActions } from '@/services/audit.service';
 import { sendApplicationApprovedEmail, sendApplicationDeniedEmail } from '@/services/email.service';
-import { toSafeMasjid, toSafeTrustee } from '@/modules/masjids/masjid.service';
+import { maskSensitive } from '@/services/crypto.service';
 
 const STATUS_FILTERS: string[] = ['PENDING_REVIEW', 'APPROVED', 'DENIED', 'DRAFT'];
 
@@ -17,6 +17,75 @@ export interface AdminContext {
   ipAddress?: string;
   userAgent?: string;
 }
+
+const toSafeTrustee = (trustee: {
+  id: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string | null;
+  role: string;
+  idType: string | null;
+  idNumberEnc: string | null;
+}) => {
+  let idNumberMasked: string | null = null;
+  if (trustee.idNumberEnc) {
+    idNumberMasked = maskSensitive(trustee.idNumberEnc);
+  }
+
+  return {
+    id: trustee.id,
+    fullName: trustee.fullName,
+    email: trustee.email,
+    phoneNumber: trustee.phoneNumber,
+    role: trustee.role,
+    idType: trustee.idType,
+    idNumberMasked,
+  };
+};
+
+const toSafeMasjid = (masjid: Awaited<ReturnType<typeof getApplicationOrThrow>>) => ({
+  id: masjid.id,
+  name: masjid.name,
+  owner: masjid.owner,
+  registrationNumber: masjid.registrationNumber,
+  organizationType: masjid.organizationType,
+  charityNumber: masjid.charityNumber,
+  email: masjid.email,
+  phoneCountryCode: masjid.phoneCountryCode,
+  phoneNumber: masjid.phoneNumber,
+  address: masjid.address,
+  city: masjid.city,
+  state: masjid.state,
+  country: masjid.country,
+  website: masjid.website,
+  establishedYear: masjid.establishedYear,
+  description: masjid.description,
+  missionStatement: masjid.missionStatement,
+  operatingHours: masjid.operatingHours,
+  services: masjid.services,
+  handlesZakat: masjid.handlesZakat,
+  handlesGiftAid: masjid.handlesGiftAid,
+  hasCharityRegistration: masjid.hasCharityRegistration,
+  acceptsOnlineDonations: masjid.acceptsOnlineDonations,
+  complianceNotes: masjid.complianceNotes,
+  registrationStep: masjid.registrationStep,
+  status: masjid.status,
+  submittedAt: masjid.submittedAt ? masjid.submittedAt.toISOString() : null,
+  reviewedAt: masjid.reviewedAt ? masjid.reviewedAt.toISOString() : null,
+  reviewNote: masjid.reviewNote,
+  denialReasons: masjid.denialReasons,
+  emailVerified: masjid.emailVerified,
+  createdAt: masjid.createdAt.toISOString(),
+  updatedAt: masjid.updatedAt.toISOString(),
+  trustees: masjid.trustees.map(toSafeTrustee),
+  documents: masjid.documents.map((d) => ({
+    id: d.id,
+    originalName: d.originalName,
+    mimeType: d.mimeType,
+    size: d.size,
+    purpose: d.purpose,
+  })),
+});
 
 /** GET /admin/compliance/applications — paginated, filterable, sortable. */
 export const listApplications = async (

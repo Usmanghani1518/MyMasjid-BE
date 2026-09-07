@@ -8,180 +8,242 @@ const apiErrorSchema = z
   .object({
     success: z.literal(false),
     message: z.string(),
-    data: z.nullable(z.unknown()),
-    errors: z.array(z.object({ field: z.string().optional(), code: z.string(), message: z.string() })),
+    error: z.object({
+      code: z.enum([
+        'VALIDATION_ERROR',
+        'INVALID_CREDENTIALS',
+        'ALREADY_REGISTERED',
+        'PENDING_REGISTRATION_EXISTS',
+        'INVALID_OTP',
+        'EXPIRED_OTP',
+        'OTP_RATE_LIMITED',
+        'RESET_TOKEN_EXPIRED',
+        'SERVER_ERROR',
+      ]),
+      fields: z.record(z.string(), z.string()).optional(),
+      pendingRegistrationId: z.string().optional(),
+      pendingRole: z.enum(['donor', 'volunteer', 'masjid']).optional(),
+      email: z.string().email().optional(),
+      canResendOtp: z.boolean().optional(),
+      retryAfterSeconds: z.number().optional(),
+    }),
   })
-  .openapi('ApiErrorResponse');
+  .openapi('AuthErrorResponse');
 
-const userSchema = z
-  .object({ id: z.string().uuid(), email: z.string().email(), name: z.string().nullable(), role: z.string() })
-  .openapi('UserResponse');
-
-const tokenResponseSchema = z
+const tokenSchema = z
   .object({
-    user: userSchema,
     accessToken: z.string(),
     refreshToken: z.string(),
-    refreshExpiresAt: z.string().datetime(),
+    expiresIn: z.number(),
+    tokenType: z.literal('Bearer'),
   })
-  .openapi('TokenResponse');
+  .openapi('AuthTokens');
 
-const loginRequestSchema = z
-  .object({ email: z.string().email(), password: z.string().min(1) })
-  .openapi('LoginRequest');
-
-const refreshRequestSchema = z.object({ refreshToken: z.string() }).openapi('RefreshRequest');
-
-const logoutRequestSchema = z.object({ refreshToken: z.string() }).openapi('LogoutRequest');
-
-const verifyOtpRequestSchema = z.object({ code: z.string().regex(/^\d{6}$/) }).openapi('VerifyOtpRequest');
-
-const donorAccountSchema = z
-  .object({ role: z.literal('DONOR'), email: z.string().email(), password: z.string().min(8), fullName: z.string() })
-  .openapi('DonorRegisterRequest');
-
-const volunteerAccountSchema = z
-  .object({ role: z.literal('VOLUNTEER'), email: z.string().email(), password: z.string().min(8), fullName: z.string() })
-  .openapi('VolunteerRegisterRequest');
-
-const masjidIdentitySchema = z
+const userSchema = z
   .object({
-    role: z.literal('MASJID'),
-    masjidName: z.string(),
-    ownerName: z.string(),
+    id: z.string(),
+    role: z.enum(['donor', 'volunteer', 'masjid', 'admin', 'super_admin']),
+    fullName: z.string(),
     email: z.string().email(),
+  })
+  .openapi('AuthUser');
+
+const pendingRegistrationSchema = z
+  .object({
+    pendingRegistrationId: z.string(),
+    email: z.string().email(),
+    otpLength: z.literal(6),
+    resendAvailableInSeconds: z.number(),
+  })
+  .openapi('PendingRegistrationResponse');
+
+const authResultSchema = z.object({ user: userSchema, tokens: tokenSchema }).openapi('AuthResult');
+
+const donorStartSchema = z
+  .object({
+    fullName: z.string().min(2),
+    email: z.string().email(),
+    mobile: z.string(),
     password: z.string().min(8),
-    organizationType: z.string(),
-    address: z.string(),
+    agreeToTerms: z.literal(true),
+    selectedCountry: z.string().length(2),
+    selectedCity: z.string(),
+    selectedLanguage: z.enum(['English', 'Arabic', 'Urdu', 'Turkish', 'Malay', 'Indonesian', 'French']),
+    bio: z.string().max(250).nullable().optional(),
+    photoUrl: z.string().nullable().optional(),
+    selectedCauses: z.array(z.enum(['masjid', 'education', 'zakat', 'waqf', 'youth', 'emergency', 'water', 'food'])).min(1),
+  })
+  .openapi('DonorStartRequest');
+
+const volunteerStartSchema = z
+  .object({
+    fullName: z.string().min(2),
+    email: z.string().email(),
+    mobileNumber: z.string(),
+    password: z.string().min(8),
+    agreeToTerms: z.literal(true),
+    country: z.string().length(2),
     city: z.string(),
-    country: z.string(),
-    registrationNumber: z.string().optional(),
-    charityNumber: z.string().optional(),
-    phoneNumber: z.string().optional(),
-    state: z.string().optional(),
-    website: z.string().optional(),
-    establishedYear: z.number().optional(),
+    skills: z.array(z.enum(['graphic-design', 'teaching', 'photography', 'fundraising', 'marketing', 'administration', 'medical', 'legal'])).optional(),
+    bio: z.string().max(250).nullable().optional(),
+    selectedInterests: z.array(z.enum(['masjid-construction', 'education', 'youth', 'food-banks', 'sadaqah-jariyah', 'health-services'])).min(1),
+    frequency: z.enum(['weekly', 'bi-weekly', 'monthly', 'quarterly', 'events']).nullable().optional(),
+  })
+  .openapi('VolunteerStartRequest');
+
+const registrationOtpSchema = z
+  .object({
+    pendingRegistrationId: z.string(),
+    otp: z.string().regex(/^\d{6}$/),
+  })
+  .openapi('RegistrationOtpRequest');
+
+const resendRegistrationOtpSchema = z
+  .object({ pendingRegistrationId: z.string() })
+  .openapi('ResendRegistrationOtpRequest');
+
+const masjidRegisterSchema = z
+  .object({
+    legalName: z.string().min(2),
+    registrationNumber: z.string(),
+    email: z.string().email(),
+    contactNumber: z.string(),
+    bio: z.string().max(500),
+    streetAddress: z.string(),
+    city: z.string(),
+    postalCode: z.string().min(3).max(12),
+    logoUrl: z.string().nullable().optional(),
+    selectedServices: z.array(z.enum(['zakat', 'youth', 'education', 'funeral', 'food', 'counseling'])).min(1),
+    trustee: z.object({
+      fullName: z.string().min(2),
+      position: z.enum(['Chairman of the Board', 'Vice Chairman', 'Treasurer', 'Secretary', 'Imam', 'Trustee']),
+      idNumber: z.string(),
+    }),
+    files: z.array(z.object({ id: z.string(), name: z.string(), status: z.string() })).min(1),
   })
   .openapi('MasjidRegisterRequest');
 
-const registerRequestSchema = z.discriminatedUnion('role', [
-  donorAccountSchema,
-  volunteerAccountSchema,
-  masjidIdentitySchema,
-]);
+const masjidApplicationSchema = z
+  .object({
+    application: z.object({
+      id: z.string(),
+      referenceId: z.string(),
+      status: z.literal('pending_review'),
+      submissionDate: z.string().datetime(),
+      primaryContact: z.string(),
+    }),
+  })
+  .openapi('MasjidApplicationResponse');
 
-const registerResponseSchema = z
-  .object({ registrationToken: z.string(), donor: z.unknown().optional(), volunteer: z.unknown().optional(), masjid: z.unknown().optional() })
-  .openapi('RegisterResponse', { description: 'Registration token + role-specific draft' });
+const loginSchema = z
+  .object({ email: z.string().email(), password: z.string(), remember: z.boolean().optional() })
+  .openapi('LoginRequest');
+
+const forgotPasswordSchema = z.object({ email: z.string().email() }).openapi('ForgotPasswordRequest');
+const passwordResetStartSchema = z
+  .object({ passwordResetId: z.string(), email: z.string().email(), otpLength: z.literal(6), resendAvailableInSeconds: z.number() })
+  .openapi('PasswordResetStartResponse');
+const passwordVerifyOtpSchema = z
+  .object({ passwordResetId: z.string(), otp: z.string().regex(/^\d{6}$/) })
+  .openapi('PasswordVerifyOtpRequest');
+const passwordVerifyOtpResponseSchema = z
+  .object({ passwordResetId: z.string(), resetAuthorizationToken: z.string(), expiresIn: z.literal(900) })
+  .openapi('PasswordVerifyOtpResponse');
+const resetPasswordSchema = z
+  .object({ passwordResetId: z.string(), resetAuthorizationToken: z.string(), password: z.string().min(8) })
+  .openapi('ResetPasswordRequest');
+const resetPasswordResponseSchema = z.object({ email: z.string().email() }).openapi('ResetPasswordResponse');
+const passwordResendOtpSchema = z.object({ passwordResetId: z.string() }).openapi('PasswordResendOtpRequest');
+
+const jsonBody = (schema: z.ZodTypeAny) => ({ body: { content: { 'application/json': { schema } } } });
+const ok = (description: string, schema?: z.ZodTypeAny) => ({
+  description,
+  ...(schema ? { content: { 'application/json': { schema } } } : {}),
+});
+const authErrors = {
+  400: ok('Validation error / invalid OTP / expired reset token', apiErrorSchema),
+  401: ok('Invalid credentials', apiErrorSchema),
+  409: ok('Already registered or pending registration exists', apiErrorSchema),
+  429: ok('OTP rate limited', apiErrorSchema),
+};
+
+([
+  ['post', '/auth/register/donor/start', 'Donor registration start', donorStartSchema, pendingRegistrationSchema, 201],
+  ['post', '/auth/register/donor/verify-otp', 'Verify donor registration OTP', registrationOtpSchema, authResultSchema, 200],
+  ['post', '/auth/register/donor/resend-otp', 'Resend donor registration OTP', resendRegistrationOtpSchema, pendingRegistrationSchema, 200],
+  ['post', '/auth/register/volunteer/start', 'Volunteer registration start', volunteerStartSchema, pendingRegistrationSchema, 201],
+  ['post', '/auth/register/volunteer/verify-otp', 'Verify volunteer registration OTP', registrationOtpSchema, authResultSchema, 200],
+  ['post', '/auth/register/volunteer/resend-otp', 'Resend volunteer registration OTP', resendRegistrationOtpSchema, pendingRegistrationSchema, 200],
+] satisfies Array<['post', string, string, z.ZodTypeAny, z.ZodTypeAny, number]>).forEach(
+  ([method, path, summary, requestSchema, responseSchema, status]) => {
+    registry.registerPath({
+      method,
+      path,
+      tags: ['Auth and Registration'],
+      summary,
+      security: [],
+      request: jsonBody(requestSchema),
+      responses: { [status]: ok('Success', responseSchema), ...authErrors },
+    });
+  },
+);
 
 registry.registerPath({
   method: 'post',
-  path: '/auth/register',
-  tags: ['Authentication'],
-  summary: 'Step 1 — Create an account for any role (donor / volunteer / masjid)',
-  description:
-    'The `role` field selects the account payload. Returns a short-lived registration token (30m) used by the remaining registration steps.',
+  path: '/auth/register/masjid',
+  tags: ['Auth and Registration'],
+  summary: 'Submit masjid application for review',
   security: [],
-  request: { body: { content: { 'application/json': { schema: registerRequestSchema } } } },
-  responses: {
-    201: { description: 'Account created', content: { 'application/json': { schema: registerResponseSchema } } },
-    400: { description: 'Validation error', content: { 'application/json': { schema: apiErrorSchema } } },
-    409: { description: 'Email already registered', content: { 'application/json': { schema: apiErrorSchema } } },
-  },
-});
-
-registry.registerPath({
-  method: 'post',
-  path: '/auth/send-otp',
-  tags: ['Authentication'],
-  summary: 'Step 4a — Send email OTP for donor/volunteer registration',
-  security: [{ bearerAuth: [] }],
-  request: { body: { content: { 'application/json': { schema: z.object({}) } } } },
-  responses: {
-    200: { description: 'OTP sent' },
-    401: { description: 'Registration token required', content: { 'application/json': { schema: apiErrorSchema } } },
-    429: { description: 'Rate limited / cooldown / max resends', content: { 'application/json': { schema: apiErrorSchema } } },
-  },
-});
-
-registry.registerPath({
-  method: 'post',
-  path: '/auth/verify-otp',
-  tags: ['Authentication'],
-  summary: 'Step 4b — Verify email OTP',
-  security: [{ bearerAuth: [] }],
-  request: { body: { content: { 'application/json': { schema: verifyOtpRequestSchema } } } },
-  responses: {
-    200: { description: 'Email verified' },
-    400: { description: 'Invalid / expired code', content: { 'application/json': { schema: apiErrorSchema } } },
-    429: { description: 'Rate limited / locked', content: { 'application/json': { schema: apiErrorSchema } } },
-  },
-});
-
-registry.registerPath({
-  method: 'post',
-  path: '/auth/complete',
-  tags: ['Authentication'],
-  summary: 'Step 5 — Complete a donor/volunteer registration and receive tokens',
-  security: [{ bearerAuth: [] }],
-  request: { body: { content: { 'application/json': { schema: z.object({}) } } } },
-  responses: {
-    201: { description: 'Registration complete', content: { 'application/json': { schema: tokenResponseSchema } } },
-    400: { description: 'Validation error', content: { 'application/json': { schema: apiErrorSchema } } },
-    401: { description: 'Registration token required', content: { 'application/json': { schema: apiErrorSchema } } },
-  },
+  request: jsonBody(masjidRegisterSchema),
+  responses: { 201: ok('Application submitted', masjidApplicationSchema), ...authErrors },
 });
 
 registry.registerPath({
   method: 'post',
   path: '/auth/login',
-  tags: ['Authentication'],
-  summary: 'Login with email and password',
-  description: 'Returns a full access token (7d) + revocable refresh token (30d)',
+  tags: ['Auth and Registration'],
+  summary: 'Sign in',
   security: [],
-  request: { body: { content: { 'application/json': { schema: loginRequestSchema } } } },
-  responses: {
-    200: { description: 'Login successful', content: { 'application/json': { schema: tokenResponseSchema } } },
-    400: { description: 'Validation error', content: { 'application/json': { schema: apiErrorSchema } } },
-    401: { description: 'Invalid credentials', content: { 'application/json': { schema: apiErrorSchema } } },
-  },
+  request: jsonBody(loginSchema),
+  responses: { 200: ok('Login successful', authResultSchema), ...authErrors },
 });
 
 registry.registerPath({
   method: 'post',
-  path: '/auth/refresh',
-  tags: ['Authentication'],
-  summary: 'Rotate refresh token and get a new access token',
+  path: '/auth/password/forgot',
+  tags: ['Auth and Registration'],
+  summary: 'Start forgot password with email OTP',
   security: [],
-  request: { body: { content: { 'application/json': { schema: refreshRequestSchema } } } },
-  responses: {
-    200: { description: 'New token pair', content: { 'application/json': { schema: tokenResponseSchema } } },
-    400: { description: 'Validation error', content: { 'application/json': { schema: apiErrorSchema } } },
-    401: { description: 'Invalid / revoked / expired refresh token', content: { 'application/json': { schema: apiErrorSchema } } },
-  },
+  request: jsonBody(forgotPasswordSchema),
+  responses: { 200: ok('OTP sent', passwordResetStartSchema), ...authErrors },
 });
 
 registry.registerPath({
   method: 'post',
-  path: '/auth/logout',
-  tags: ['Authentication'],
-  summary: 'Revoke a refresh token (logout)',
+  path: '/auth/password/verify-otp',
+  tags: ['Auth and Registration'],
+  summary: 'Verify forgot password OTP',
   security: [],
-  request: { body: { content: { 'application/json': { schema: logoutRequestSchema } } } },
-  responses: {
-    200: { description: 'Logged out' },
-    400: { description: 'Validation error', content: { 'application/json': { schema: apiErrorSchema } } },
-  },
+  request: jsonBody(passwordVerifyOtpSchema),
+  responses: { 200: ok('OTP verified', passwordVerifyOtpResponseSchema), ...authErrors },
 });
 
 registry.registerPath({
-  method: 'get',
-  path: '/auth/me',
-  tags: ['Authentication'],
-  summary: 'Get the authenticated user',
-  security: [{ bearerAuth: [] }],
-  responses: {
-    200: { description: 'Current user', content: { 'application/json': { schema: userSchema } } },
-    401: { description: 'Not authenticated', content: { 'application/json': { schema: apiErrorSchema } } },
-  },
+  method: 'post',
+  path: '/auth/password/reset',
+  tags: ['Auth and Registration'],
+  summary: 'Reset password with reset authorization token',
+  security: [],
+  request: jsonBody(resetPasswordSchema),
+  responses: { 200: ok('Password reset', resetPasswordResponseSchema), ...authErrors },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/auth/password/resend-otp',
+  tags: ['Auth and Registration'],
+  summary: 'Resend forgot password OTP',
+  security: [],
+  request: jsonBody(passwordResendOtpSchema),
+  responses: { 200: ok('OTP sent', passwordResetStartSchema), ...authErrors },
 });

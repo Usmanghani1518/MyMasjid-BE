@@ -35,13 +35,13 @@ vi.mock('@/config/database', () => ({
 }));
 
 vi.mock('@/services/email.service', () => ({
-  sendDonorOtpEmail: vi.fn(async (_to: string, opts: { code: string }) => {
+  queueDonorOtpEmail: vi.fn((_to: string, opts: { code: string }) => {
     sentCodes.push(opts.code);
   }),
-  sendVolunteerOtpEmail: vi.fn(async (_to: string, opts: { code: string }) => {
+  queueVolunteerOtpEmail: vi.fn((_to: string, opts: { code: string }) => {
     sentCodes.push(opts.code);
   }),
-  sendResendOtpEmail: vi.fn(async (_to: string, opts: { code: string }) => {
+  queuePasswordResetOtpEmail: vi.fn((_to: string, opts: { code: string }) => {
     sentCodes.push(opts.code);
   }),
 }));

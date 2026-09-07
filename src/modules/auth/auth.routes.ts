@@ -3,22 +3,37 @@ import { prisma } from '@/config/database';
 import { asyncHandler, AppError } from '@/utils/helpers';
 import { ErrorCodes } from '@/utils/errorCodes';
 import { validateRequest } from '@/middleware/validate';
-import { authenticate, authenticateRegistration, AuthRequest } from '@/middleware/auth';
+import { authenticate, AuthRequest } from '@/middleware/auth';
 import { authLimiter, otpLimiter } from '@/middleware/rateLimit';
 import { sendSuccess } from '@/utils/response';
 import {
+  donorStartSchema,
+  forgotPasswordSchema,
   loginSchema,
-  refreshSchema,
   logoutSchema,
-  registerSchema,
-  sendOtpSchema,
-  verifyOtpSchema,
-  completeSchema,
+  masjidRegisterSchema,
+  refreshSchema,
+  resendPasswordOtpSchema,
+  resendRegistrationOtpSchema,
+  resetPasswordSchema,
+  verifyPasswordOtpSchema,
+  verifyRegistrationOtpSchema,
+  volunteerStartSchema,
 } from '@/modules/auth/auth.schemas';
-import { login, refresh, logout } from '@/modules/auth/auth.service';
-import * as donorService from '@/modules/donors/donor.service';
-import * as volunteerService from '@/modules/volunteers/volunteer.service';
-import * as masjidService from '@/modules/masjids/masjid.service';
+import {
+  forgotPassword,
+  login,
+  logout,
+  refresh,
+  registerMasjid,
+  resendPasswordOtp,
+  resendRegistrationOtp,
+  resetPassword,
+  startDonorRegistration,
+  startVolunteerRegistration,
+  verifyPasswordOtp,
+  verifyRegistrationOtp,
+} from '@/modules/auth/auth.service';
 
 const router = Router();
 
@@ -27,111 +42,67 @@ const contextFrom = (req: AuthRequest) => ({
   userAgent: req.get('user-agent'),
 });
 
-// ==================== Registration (step 1 for all roles) ====================
-// The account payload differs per role; the `role` field in the body selects
-// the correct feature service. Each returns a short-lived registration token.
 router.post(
-  '/register',
-  validateRequest(registerSchema),
+  '/register/donor/start',
+  otpLimiter,
+  validateRequest(donorStartSchema),
   asyncHandler(async (req, res) => {
-    const ctx = contextFrom(req);
-    const role = req.body.role as string;
-
-    if (role === 'DONOR') {
-      const { registrationToken, donor } = await donorService.createAccount(req.body, ctx);
-      sendSuccess(res, { registrationToken, donor }, 'Account created', 201);
-      return;
-    }
-    if (role === 'VOLUNTEER') {
-      const { registrationToken, volunteer } = await volunteerService.createAccount(req.body, ctx);
-      sendSuccess(res, { registrationToken, volunteer }, 'Account created', 201);
-      return;
-    }
-    const { registrationToken, masjid } = await masjidService.createInstitutionalIdentity(req.body, ctx);
-    sendSuccess(res, { registrationToken, masjid }, 'Masjid registration started', 201);
+    sendSuccess(res, await startDonorRegistration(req.body, contextFrom(req)), 'OTP sent.', 201);
   }),
 );
 
-// ==================== Email OTP (donor / volunteer) ====================
-// The role + email come from the registration token, so the purpose is unambiguous.
-const otpNotApplicable = () =>
-  new AppError('Email OTP does not apply to this registration type', 400, true, ErrorCodes.OTP_INVALID);
-
 router.post(
-  '/send-otp',
-  authenticateRegistration,
+  '/register/donor/verify-otp',
   otpLimiter,
-  validateRequest(sendOtpSchema),
-  asyncHandler(async (req: AuthRequest, res) => {
-    const userId = req.user!.userId;
-    const email = req.user!.email;
-    const ctx = { ...contextFrom(req), actorId: userId };
-
-    if (req.user!.role === 'DONOR') {
-      await donorService.sendOtp(userId, email, ctx);
-    } else if (req.user!.role === 'VOLUNTEER') {
-      await volunteerService.sendOtp(userId, email, ctx);
-    } else {
-      throw otpNotApplicable();
-    }
-    sendSuccess(res, null, 'OTP sent');
+  validateRequest(verifyRegistrationOtpSchema),
+  asyncHandler(async (req, res) => {
+    sendSuccess(res, await verifyRegistrationOtp(req.body.pendingRegistrationId, req.body.otp, 'donor', contextFrom(req)), 'Registration complete.');
   }),
 );
 
 router.post(
-  '/verify-otp',
-  authenticateRegistration,
+  '/register/donor/resend-otp',
   otpLimiter,
-  validateRequest(verifyOtpSchema),
-  asyncHandler(async (req: AuthRequest, res) => {
-    const userId = req.user!.userId;
-    const email = req.user!.email;
-    const code = req.body.code as string;
-    const ctx = { ...contextFrom(req), actorId: userId };
-
-    if (req.user!.role === 'DONOR') {
-      const donor = await donorService.verifyOtp(userId, email, code, ctx);
-      sendSuccess(res, { donor }, 'Email verified');
-      return;
-    }
-    if (req.user!.role === 'VOLUNTEER') {
-      const volunteer = await volunteerService.verifyOtp(userId, email, code, ctx);
-      sendSuccess(res, { volunteer }, 'Email verified');
-      return;
-    }
-    throw otpNotApplicable();
+  validateRequest(resendRegistrationOtpSchema),
+  asyncHandler(async (req, res) => {
+    sendSuccess(res, await resendRegistrationOtp(req.body.pendingRegistrationId, 'donor', contextFrom(req)), 'OTP sent.');
   }),
 );
 
-// ==================== Complete (donor / volunteer) ====================
 router.post(
-  '/complete',
-  authenticateRegistration,
-  validateRequest(completeSchema),
-  asyncHandler(async (req: AuthRequest, res) => {
-    const userId = req.user!.userId;
-    const ctx = { ...contextFrom(req), actorId: userId };
-
-    if (req.user!.role === 'DONOR') {
-      const { tokens, donor } = await donorService.complete(userId, ctx);
-      sendSuccess(res, { ...tokens, donor }, 'Registration complete', 201);
-      return;
-    }
-    if (req.user!.role === 'VOLUNTEER') {
-      const { tokens, volunteer } = await volunteerService.complete(userId, ctx);
-      sendSuccess(res, { ...tokens, volunteer }, 'Registration complete', 201);
-      return;
-    }
-    throw new AppError(
-      'Masjid registrations are submitted for review, not completed',
-      400,
-      true,
-      ErrorCodes.REGISTRATION_STEP_INVALID,
-    );
+  '/register/volunteer/start',
+  otpLimiter,
+  validateRequest(volunteerStartSchema),
+  asyncHandler(async (req, res) => {
+    sendSuccess(res, await startVolunteerRegistration(req.body, contextFrom(req)), 'OTP sent.', 201);
   }),
 );
 
-// ==================== Session ====================
+router.post(
+  '/register/volunteer/verify-otp',
+  otpLimiter,
+  validateRequest(verifyRegistrationOtpSchema),
+  asyncHandler(async (req, res) => {
+    sendSuccess(res, await verifyRegistrationOtp(req.body.pendingRegistrationId, req.body.otp, 'volunteer', contextFrom(req)), 'Registration complete.');
+  }),
+);
+
+router.post(
+  '/register/volunteer/resend-otp',
+  otpLimiter,
+  validateRequest(resendRegistrationOtpSchema),
+  asyncHandler(async (req, res) => {
+    sendSuccess(res, await resendRegistrationOtp(req.body.pendingRegistrationId, 'volunteer', contextFrom(req)), 'OTP sent.');
+  }),
+);
+
+router.post(
+  '/register/masjid',
+  validateRequest(masjidRegisterSchema),
+  asyncHandler(async (req, res) => {
+    sendSuccess(res, await registerMasjid(req.body), 'Masjid application submitted.', 201);
+  }),
+);
 
 router.post(
   '/login',
@@ -139,7 +110,42 @@ router.post(
   validateRequest(loginSchema),
   asyncHandler(async (req, res) => {
     const { user, tokens } = await login(req.body.email, req.body.password, contextFrom(req));
-    sendSuccess(res, { user, ...tokens }, 'Login successful');
+    sendSuccess(res, { user, tokens: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresIn: 3600, tokenType: 'Bearer' } }, 'Login successful.');
+  }),
+);
+
+router.post(
+  '/password/forgot',
+  otpLimiter,
+  validateRequest(forgotPasswordSchema),
+  asyncHandler(async (req, res) => {
+    sendSuccess(res, await forgotPassword(req.body.email, contextFrom(req)), 'OTP sent.');
+  }),
+);
+
+router.post(
+  '/password/verify-otp',
+  otpLimiter,
+  validateRequest(verifyPasswordOtpSchema),
+  asyncHandler(async (req, res) => {
+    sendSuccess(res, await verifyPasswordOtp(req.body.passwordResetId, req.body.otp, contextFrom(req)), 'OTP verified.');
+  }),
+);
+
+router.post(
+  '/password/reset',
+  validateRequest(resetPasswordSchema),
+  asyncHandler(async (req, res) => {
+    sendSuccess(res, await resetPassword(req.body.passwordResetId, req.body.resetAuthorizationToken, req.body.password), 'Password reset.');
+  }),
+);
+
+router.post(
+  '/password/resend-otp',
+  otpLimiter,
+  validateRequest(resendPasswordOtpSchema),
+  asyncHandler(async (req, res) => {
+    sendSuccess(res, await resendPasswordOtp(req.body.passwordResetId, contextFrom(req)), 'OTP sent.');
   }),
 );
 
@@ -149,7 +155,7 @@ router.post(
   validateRequest(refreshSchema),
   asyncHandler(async (req, res) => {
     const { user, tokens } = await refresh(req.body.refreshToken, contextFrom(req));
-    sendSuccess(res, { user, ...tokens }, 'Tokens refreshed');
+    sendSuccess(res, { user, tokens }, 'Tokens refreshed');
   }),
 );
 

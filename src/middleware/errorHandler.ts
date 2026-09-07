@@ -43,6 +43,24 @@ const mapPrismaError = (
   }
 };
 
+const frontendCode = (code: string): string => {
+  switch (code) {
+    case ErrorCodes.OTP_INVALID:
+      return ErrorCodes.INVALID_OTP;
+    case ErrorCodes.OTP_EXPIRED:
+      return ErrorCodes.EXPIRED_OTP;
+    case ErrorCodes.OTP_COOLDOWN:
+    case ErrorCodes.OTP_LOCKED:
+    case ErrorCodes.OTP_MAX_RESENDS:
+    case ErrorCodes.RATE_LIMITED:
+      return ErrorCodes.OTP_RATE_LIMITED;
+    case ErrorCodes.INTERNAL_SERVER_ERROR:
+      return ErrorCodes.SERVER_ERROR;
+    default:
+      return code;
+  }
+};
+
 export const errorHandler = (
   err: Error | AppError,
   _req: Request,
@@ -56,9 +74,11 @@ export const errorHandler = (
   }
 
   if (err instanceof AppError) {
+    const extra = (err as AppError & { extra?: Record<string, unknown> }).extra ?? {};
+    const code = frontendCode(err.code ?? ErrorCodes.INTERNAL_SERVER_ERROR);
     res
       .status(err.statusCode)
-      .json(errorBody(err.message, [{ code: err.code ?? ErrorCodes.INTERNAL_SERVER_ERROR, message: err.message }]));
+      .json(errorBody(err.message, [{ code, message: err.message }], extra));
     return;
   }
 

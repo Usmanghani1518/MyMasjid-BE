@@ -8,7 +8,6 @@
 import bcrypt from 'bcrypt';
 import { prisma } from '@/config/database';
 import { Role, RegistrationStatus } from '@/generated/prisma/enums';
-import { encrypt } from '@/services/crypto.service';
 
 const BCRYPT_ROUNDS = 12;
 const SEED_PASSWORD = 'Passw0rd123!';
@@ -63,7 +62,7 @@ async function main(): Promise<void> {
       country: 'PK',
       dateOfBirth: new Date('1990-05-15'),
       idType: 'NATIONAL_ID',
-      idNumberEnc: encrypt('3520212345678', { entityType: 'Donor' }),
+      idNumberEnc: '3520212345678',
       interests: ['ZAKAT', 'SADAQAH', 'EDUCATION'],
       registrationStep: 4,
       status: RegistrationStatus.ACTIVE,
@@ -145,7 +144,7 @@ async function main(): Promise<void> {
         email: 'masjid-approved@example.com',
         role: 'CHAIR',
         idType: 'NATIONAL_ID',
-        idNumberEnc: encrypt('3520111111111', { entityType: 'Trustee' }),
+        idNumberEnc: '3520111111111',
       },
       {
         masjidId: approvedMasjid.id,

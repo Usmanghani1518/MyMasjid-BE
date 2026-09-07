@@ -42,8 +42,12 @@ export const buildOpenApiSpec = (version: string = 'v1') => {
     },
     servers: [
       {
+        url: `http://localhost:${config.PORT}/api`,
+        description: 'Frontend API base',
+      },
+      {
         url: `http://localhost:${config.PORT}/api/${version}`,
-        description: 'Local development',
+        description: 'Versioned compatibility base',
       },
     ],
   });

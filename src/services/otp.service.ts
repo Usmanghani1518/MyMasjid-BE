@@ -6,9 +6,9 @@ import { ErrorCodes } from '@/utils/errorCodes';
 import { generateOtpCode, hashOtp } from '@/services/crypto.service';
 import { audit, AuditActions } from '@/services/audit.service';
 import {
-  sendDonorOtpEmail,
-  sendVolunteerOtpEmail,
-  sendResendOtpEmail,
+  queueDonorOtpEmail,
+  queueVolunteerOtpEmail,
+  queuePasswordResetOtpEmail,
 } from '@/services/email.service';
 
 export interface OtpContext {
@@ -29,16 +29,21 @@ const findLatest = (email: string, purpose: OtpPurpose) =>
     orderBy: { createdAt: 'desc' },
   });
 
-const sendPurposeEmail = (to: string, purpose: OtpPurpose, recipientName: string | undefined, code: string): Promise<void> => {
+const queuePurposeEmail = (to: string, purpose: OtpPurpose, recipientName: string | undefined, code: string): void => {
   const name = recipientName ?? 'there';
   const minutes = config.OTP_EXPIRES_MINUTES;
   switch (purpose) {
     case OtpPurpose.DONOR_REGISTRATION:
-      return sendDonorOtpEmail(to, { name, code, expiresInMinutes: minutes });
+      queueDonorOtpEmail(to, { name, code, expiresInMinutes: minutes });
+      return;
     case OtpPurpose.VOLUNTEER_REGISTRATION:
-      return sendVolunteerOtpEmail(to, { name, code, expiresInMinutes: minutes });
+      queueVolunteerOtpEmail(to, { name, code, expiresInMinutes: minutes });
+      return;
+    case OtpPurpose.PASSWORD_RESET:
+      queuePasswordResetOtpEmail(to, { name, code, expiresInMinutes: minutes });
+      return;
     default:
-      return sendResendOtpEmail(to, { name, code, expiresInMinutes: minutes });
+      queueDonorOtpEmail(to, { name, code, expiresInMinutes: minutes });
   }
 };
 
@@ -112,7 +117,7 @@ export const sendOtp = async (
     userAgent: ctx.userAgent,
   });
 
-  await sendPurposeEmail(normalized, purpose, ctx.recipientName, code);
+  queuePurposeEmail(normalized, purpose, ctx.recipientName, code);
 
   return { cooldownUntil: new Date(Date.now() + COOLDOWN_MS) };
 };

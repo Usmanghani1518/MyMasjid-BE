@@ -19,6 +19,7 @@ export interface ApiResponse<T = unknown> {
   message: string;
   data: T | null;
   errors: ApiError[];
+  error?: Record<string, unknown>;
 }
 
 /** Successful response helper. */
@@ -33,11 +34,17 @@ export const sendSuccess = <T>(
 export const errorBody = (
   message: string,
   errors: ApiError[] = [{ code: 'INTERNAL_SERVER_ERROR', message }],
+  extra: Record<string, unknown> = {},
 ): ApiResponse<null> => ({
   success: false,
   message,
   data: null,
   errors,
+  error: {
+    code: errors.some((e) => e.field) ? 'VALIDATION_ERROR' : errors[0]?.code ?? 'SERVER_ERROR',
+    fields: Object.fromEntries(errors.filter((e) => e.field).map((e) => [e.field, e.message])),
+    ...extra,
+  },
 });
 
 /** Convenience: single-error error body. */

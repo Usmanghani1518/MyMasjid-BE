@@ -19,10 +19,7 @@ const adapter = new PrismaPg(config.DATABASE_URL, { schema: parseSchema(config.D
 
 const prisma = new PrismaClient({
   adapter,
-  log:
-    config.NODE_ENV === 'development'
-      ? ['query', 'error', 'warn']
-      : ['error'],
+  log: config.PRISMA_QUERY_LOGS ? ['query', 'error', 'warn'] : ['error', 'warn'],
 });
 
 export const connectDatabase = async (): Promise<void> => {

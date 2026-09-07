@@ -13,13 +13,8 @@ const envSchema = z.object({
   // ==================== JWT / Tokens ====================
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
   JWT_EXPIRES_IN: z.string().default('7d'),
-  REGISTRATION_TOKEN_EXPIRES_IN: z.string().default('30m'),
   REFRESH_TOKEN_SECRET: z.string().optional(),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('30d'),
-
-  // ==================== Sensitive data encryption (AES-256-GCM) ====================
-  // Any secret value (min 16 chars). A 32-byte key is derived from it via SHA-256.
-  ENCRYPTION_KEY: z.string().min(16, 'ENCRYPTION_KEY must be at least 16 characters'),
 
   // ==================== OTP ====================
   OTP_LENGTH: z.coerce.number().default(6),
@@ -29,10 +24,8 @@ const envSchema = z.object({
   OTP_MAX_ATTEMPTS: z.coerce.number().default(5),
   OTP_LOCK_MINUTES: z.coerce.number().default(15),
 
-  // ==================== CORS / Uploads ====================
+  // ==================== CORS ====================
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
-  UPLOAD_DIR: z.string().default('uploads'),
-  MAX_UPLOAD_SIZE_MB: z.coerce.number().default(10),
 
   // ==================== Email ====================
   SMTP_HOST: z.string().optional(),
@@ -40,10 +33,14 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().default('MyMasjid <no-reply@mymasjid.org>'),
+  SMTP_CONNECTION_TIMEOUT_MS: z.coerce.number().default(5000),
+  SMTP_GREETING_TIMEOUT_MS: z.coerce.number().default(5000),
+  SMTP_SOCKET_TIMEOUT_MS: z.coerce.number().default(8000),
   FRONTEND_URL: z.string().default('http://localhost:5173'),
 
   // ==================== Misc ====================
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  PRISMA_QUERY_LOGS: z.coerce.boolean().default(false),
   ENABLE_API_DOCS: z.coerce.boolean().default(true),
 });
 

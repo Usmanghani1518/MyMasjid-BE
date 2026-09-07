@@ -7,13 +7,11 @@ import { parseDurationToMs } from '@/utils/time';
 import { generateRandomToken, hashToken } from '@/services/crypto.service';
 import { audit, AuditActions } from '@/services/audit.service';
 
-export type TokenType = 'access' | 'registration';
-
 export interface TokenPayload {
   sub: string;
   email: string;
   role: string;
-  type: TokenType;
+  type: 'access';
   iat: number;
   exp: number;
 }
@@ -31,24 +29,17 @@ interface TokenContext {
 
 const ISSUER = 'mymasjid';
 
-const signToken = (user: TokenUser, type: TokenType, expiresIn: string): string =>
-  jwt.sign({ sub: user.id, email: user.email, role: user.role, type }, config.JWT_SECRET, {
-    expiresIn: expiresIn as jwt.SignOptions['expiresIn'],
+/** Full access token used after login or completed donor/volunteer registration. */
+export const generateAccessToken = (user: TokenUser): string =>
+  jwt.sign({ sub: user.id, email: user.email, role: user.role, type: 'access' }, config.JWT_SECRET, {
+    expiresIn: config.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
     issuer: ISSUER,
   });
 
-/** Full access token (default 7 days). */
-export const generateAccessToken = (user: TokenUser): string =>
-  signToken(user, 'access', config.JWT_EXPIRES_IN);
-
-/** Short-lived token issued at registration step 1 (default 30 minutes). */
-export const generateRegistrationToken = (user: TokenUser): string =>
-  signToken(user, 'registration', config.REGISTRATION_TOKEN_EXPIRES_IN);
-
-const verifyToken = (token: string, expectedType: TokenType): TokenPayload => {
+export const verifyAccessToken = (token: string): TokenPayload => {
   try {
     const decoded = jwt.verify(token, config.JWT_SECRET, { issuer: ISSUER }) as TokenPayload;
-    if (decoded.type !== expectedType) {
+    if (decoded.type !== 'access') {
       throw new AppError('Invalid token type', 401, true, ErrorCodes.TOKEN_INVALID);
     }
     return decoded;
@@ -60,9 +51,6 @@ const verifyToken = (token: string, expectedType: TokenType): TokenPayload => {
     throw new AppError('Invalid token', 401, true, ErrorCodes.TOKEN_INVALID);
   }
 };
-
-export const verifyAccessToken = (token: string): TokenPayload => verifyToken(token, 'access');
-export const verifyRegistrationToken = (token: string): TokenPayload => verifyToken(token, 'registration');
 
 // ==================== Refresh tokens (opaque, revocable, hashed) ====================
 

@@ -10,19 +10,11 @@ import { createDocsRouter } from '@/docs/router';
 
 // Register module docs (must come before specs are built)
 import '@/modules/auth/auth.docs';
-import '@/modules/donors/donor.docs';
-import '@/modules/volunteers/volunteer.docs';
-import '@/modules/masjids/masjid.docs';
 import '@/modules/admin/admin.docs';
-import '@/modules/uploads/upload.docs';
 
 // Module routes
 import authRoutes from '@/modules/auth/auth.routes';
-import donorRoutes from '@/modules/donors/donor.routes';
-import volunteerRoutes from '@/modules/volunteers/volunteer.routes';
-import masjidRoutes from '@/modules/masjids/masjid.routes';
 import adminRoutes from '@/modules/admin/admin.routes';
-import uploadRoutes from '@/modules/uploads/upload.routes';
 
 const app = express();
 
@@ -81,11 +73,8 @@ if (config.ENABLE_API_DOCS) {
 
 // ==================== API Routes ====================
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/registration/donors', donorRoutes);
-app.use('/api/v1/registration/volunteers', volunteerRoutes);
-app.use('/api/v1/registration/masjids', masjidRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/v1/admin/compliance', adminRoutes);
-app.use('/api/v1/uploads', uploadRoutes);
 
 // ==================== 404 Handler ====================
 app.use((_req, _res, next) => {

@@ -1,18 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '@/utils/helpers';
 import { ErrorCodes } from '@/utils/errorCodes';
-import {
-  verifyAccessToken,
-  verifyRegistrationToken,
-  TokenPayload,
-} from '@/services/token.service';
+import { verifyAccessToken, TokenPayload } from '@/services/token.service';
 
 export interface AuthUser {
   userId: string;
   email: string;
   role: string;
-  /** True when authenticated with a short-lived registration token. */
-  isRegistration: boolean;
 }
 
 export interface AuthRequest extends Request {
@@ -31,12 +25,11 @@ const extractBearerToken = (req: Request): string => {
   return token;
 };
 
-const attachUser = (req: AuthRequest, payload: TokenPayload, isRegistration: boolean): void => {
+const attachUser = (req: AuthRequest, payload: TokenPayload): void => {
   req.user = {
     userId: payload.sub,
     email: payload.email,
     role: payload.role,
-    isRegistration,
   };
 };
 
@@ -45,37 +38,8 @@ export const authenticate = (req: AuthRequest, _res: Response, next: NextFunctio
   try {
     const token = extractBearerToken(req);
     const payload = verifyAccessToken(token);
-    attachUser(req, payload, false);
+    attachUser(req, payload);
     next();
-  } catch (err) {
-    next(err);
-  }
-};
-
-/** Requires a short-lived registration token (issued at registration step 1). */
-export const authenticateRegistration = (req: AuthRequest, _res: Response, next: NextFunction): void => {
-  try {
-    const token = extractBearerToken(req);
-    const payload = verifyRegistrationToken(token);
-    attachUser(req, payload, true);
-    next();
-  } catch (err) {
-    next(err);
-  }
-};
-
-/** Accepts either an access token or a registration token (e.g. document uploads). */
-export const authenticateEither = (req: AuthRequest, res: Response, next: NextFunction): void => {
-  try {
-    const token = extractBearerToken(req);
-    try {
-      attachUser(req, verifyAccessToken(token), false);
-      next();
-      return;
-    } catch {
-      attachUser(req, verifyRegistrationToken(token), true);
-      next();
-    }
   } catch (err) {
     next(err);
   }

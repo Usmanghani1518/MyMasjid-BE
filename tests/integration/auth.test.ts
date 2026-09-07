@@ -14,8 +14,8 @@ describeIfDb('Authentication', () => {
     await createUser(EMAIL, { password: PASSWORD });
     const res = await request(app).post('/api/v1/auth/login').send({ email: EMAIL, password: PASSWORD });
     expect(res.status).toBe(200);
-    expect(res.body.data.accessToken).toBeTruthy();
-    expect(res.body.data.refreshToken).toBeTruthy();
+    expect(res.body.data.tokens.accessToken).toBeTruthy();
+    expect(res.body.data.tokens.refreshToken).toBeTruthy();
     expect(res.body.data.user.email).toBe(EMAIL);
   });
 
@@ -32,7 +32,7 @@ describeIfDb('Authentication', () => {
 
     const rotated = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: original });
     expect(rotated.status).toBe(200);
-    const newRefresh = rotated.body.data.refreshToken;
+    const newRefresh = rotated.body.data.tokens.refreshToken;
     expect(newRefresh).not.toBe(original);
 
     // The old token is now revoked → reuse is rejected.
