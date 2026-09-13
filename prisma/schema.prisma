@@ -37,6 +37,11 @@ enum OtpPurpose {
   PASSWORD_RESET
 }
 
+enum CampaignPublicationStatus {
+  DRAFT
+  PUBLISHED
+}
+
 // ==================== Models ====================
 
 model User {
@@ -57,6 +62,38 @@ model User {
   documents     UploadedDocument[]
 
   @@map("users")
+}
+
+model Campaign {
+  id                String                    @id @default(uuid())
+  masjidId          String
+  masjid            Masjid                    @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  name              String?
+  category          String?
+  project           String?
+  description       String?
+  coverImageUrl     String?
+  coverImagePublicId String?
+  videoUrl          String?
+  videoPublicId     String?
+  gallery           Json                      @default("[]")
+  goal              Decimal?                  @db.Decimal(14, 2)
+  currency          String                    @default("GBP")
+  startDate         DateTime?
+  endDate           DateTime?
+  donationTiers     Json                      @default("[]")
+  story             String?
+  impact            String?
+  faqs               Json                      @default("[]")
+  publicationStatus CampaignPublicationStatus @default(DRAFT)
+  publishedAt       DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  deletedAt         DateTime?
+
+  @@index([masjidId, publicationStatus])
+  @@index([startDate, endDate])
+  @@map("campaigns")
 }
 
 model Donor {
@@ -164,6 +201,7 @@ model Masjid {
 
   trustees  Trustee[]
   documents UploadedDocument[]
+  campaigns Campaign[]
 
   @@index([status])
   @@index([ownerId])

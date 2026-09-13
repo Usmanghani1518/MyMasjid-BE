@@ -91,6 +91,7 @@ export const masjidRegisterSchema = z.object({
     registrationNumber: z.string().trim().min(1),
     email,
     contactNumber: phone,
+    password,
     bio: z.string().trim().min(1, 'Bio is required').max(500),
     streetAddress: z.string().trim().min(1),
     city,

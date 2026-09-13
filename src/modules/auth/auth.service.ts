@@ -314,7 +314,7 @@ export const registerMasjid = async (input: any) => {
   const created = await prisma.user.create({
     data: {
       email,
-      password: await hashPassword(generateRandomToken(18)),
+      password: await hashPassword(input.password),
       name: input.trustee.fullName,
       role: Role.MASJID_ADMIN,
       isActive: false,

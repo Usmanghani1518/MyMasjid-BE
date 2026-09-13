@@ -35,7 +35,7 @@ export const buildOpenApiSpec = (version: string = 'v1') => {
       title: 'MyMasjid API',
       version: semver,
       description:
-        'Centralized platform for Islamic organizations — fundraising, community engagement, volunteer management, and governance.',
+        'Centralized platform for Islamic organizations — fundraising, community engagement, volunteer management, and governance. Protected endpoints validate that the account is active and that the current database role still matches the JWT. Role-restricted resources never permit access to another portal or Masjid.',
       contact: {
         name: 'MyMasjid Team',
       },

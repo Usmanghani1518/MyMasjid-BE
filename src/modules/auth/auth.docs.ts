@@ -108,6 +108,7 @@ const masjidRegisterSchema = z
     registrationNumber: z.string(),
     email: z.string().email(),
     contactNumber: z.string(),
+    password: z.string().min(8),
     bio: z.string().max(500),
     streetAddress: z.string(),
     city: z.string(),
@@ -154,6 +155,11 @@ const resetPasswordSchema = z
   .openapi('ResetPasswordRequest');
 const resetPasswordResponseSchema = z.object({ email: z.string().email() }).openapi('ResetPasswordResponse');
 const passwordResendOtpSchema = z.object({ passwordResetId: z.string() }).openapi('PasswordResendOtpRequest');
+const refreshRequestSchema = z.object({ refreshToken: z.string().min(1) }).openapi('RefreshTokenRequest');
+const logoutRequestSchema = z.object({ refreshToken: z.string().min(1) }).openapi('LogoutRequest');
+const currentUserSchema = z.object({
+  user: z.object({ id: z.string().uuid(), email: z.string().email(), name: z.string().nullable(), role: z.enum(['USER', 'DONOR', 'VOLUNTEER', 'MASJID_ADMIN', 'ADMIN', 'SUPER_ADMIN']), isActive: z.boolean(), createdAt: z.string().datetime() }),
+}).openapi('CurrentUserResponse');
 
 const jsonBody = (schema: z.ZodTypeAny) => ({ body: { content: { 'application/json': { schema } } } });
 const ok = (description: string, schema?: z.ZodTypeAny) => ({
@@ -206,6 +212,26 @@ registry.registerPath({
   security: [],
   request: jsonBody(loginSchema),
   responses: { 200: ok('Login successful', authResultSchema), ...authErrors },
+});
+
+registry.registerPath({
+  method: 'post', path: '/auth/refresh', tags: ['Auth and Registration'], summary: 'Rotate a refresh token',
+  description: 'Revokes the submitted refresh token and returns a new access/refresh pair. Reuse of the old token is rejected.',
+  security: [], request: jsonBody(refreshRequestSchema),
+  responses: { 200: ok('Tokens refreshed', authResultSchema), 401: ok('Refresh token invalid, revoked, or expired', apiErrorSchema), 429: ok('Rate limited', apiErrorSchema) },
+});
+
+registry.registerPath({
+  method: 'post', path: '/auth/logout', tags: ['Auth and Registration'], summary: 'Log out and revoke the refresh token',
+  description: 'Clients should clear their local session even if this request fails.', security: [], request: jsonBody(logoutRequestSchema),
+  responses: { 200: ok('Logged out'), 400: ok('Invalid request', apiErrorSchema), 429: ok('Rate limited', apiErrorSchema) },
+});
+
+registry.registerPath({
+  method: 'get', path: '/auth/me', tags: ['Auth and Registration'], summary: 'Get the authenticated user',
+  description: 'The access token is checked against the current database account. Disabled/deleted accounts and tokens carrying a stale role are rejected.',
+  security: [{ bearerAuth: [] }],
+  responses: { 200: ok('Current user', currentUserSchema), 401: ok('Missing, expired, invalid, or stale token', apiErrorSchema), 404: ok('Account no longer exists or is inactive', apiErrorSchema) },
 });
 
 registry.registerPath({

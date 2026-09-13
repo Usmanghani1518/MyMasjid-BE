@@ -26,6 +26,24 @@ describeIfDb('Authentication', () => {
     expect(res.body.errors[0].code).toBe('INVALID_CREDENTIALS');
   });
 
+  it('stores the submitted Masjid password and allows login after approval', async () => {
+    const email = 'masjid-admin@example.com';
+    const registration = await request(app).post('/api/v1/auth/register/masjid').send({
+      legalName: 'Central Test Masjid', registrationNumber: 'REG-1001', email,
+      contactNumber: '+44 20 7123 4567', password: PASSWORD, bio: 'Serving the local Muslim community.',
+      streetAddress: '1 Test Street', city: 'London', postalCode: 'E1 1AA', logoUrl: null,
+      selectedServices: ['zakat'],
+      trustee: { fullName: 'Ahmed Khan', position: 'Chairman of the Board', idNumber: 'ID-12345' },
+      files: [{ id: 'doc-1', name: 'registration.pdf', status: 'uploaded' }],
+    });
+    expect(registration.status).toBe(201);
+
+    await prisma.user.update({ where: { email }, data: { isActive: true } });
+    const signIn = await request(app).post('/api/v1/auth/login').send({ email, password: PASSWORD });
+    expect(signIn.status).toBe(200);
+    expect(signIn.body.data.user.role).toBe('masjid');
+  });
+
   it('rotates the refresh token on /auth/refresh and revokes the old one', async () => {
     await createUser(EMAIL, { password: PASSWORD });
     const { refreshToken: original, accessToken } = await login(EMAIL, PASSWORD);

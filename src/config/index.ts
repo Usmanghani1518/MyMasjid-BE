@@ -38,6 +38,11 @@ const envSchema = z.object({
   SMTP_SOCKET_TIMEOUT_MS: z.coerce.number().default(8000),
   FRONTEND_URL: z.string().default('http://localhost:5173'),
 
+  // ==================== Cloudinary ====================
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
+
   // ==================== Misc ====================
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   PRISMA_QUERY_LOGS: z.coerce.boolean().default(false),

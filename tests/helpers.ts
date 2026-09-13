@@ -34,7 +34,7 @@ export const installEmailCapture = (): { sent: OutboundMail[]; getOtpCode: (i?: 
 export const truncateAll = async (): Promise<void> => {
   await prisma.$executeRawUnsafe(
     `TRUNCATE TABLE "users", "donors", "volunteers", "masjids", "trustees",
-     "uploaded_documents", "otps", "refresh_tokens", "password_resets", "audit_logs" RESTART IDENTITY CASCADE`,
+     "uploaded_documents", "campaigns", "otps", "refresh_tokens", "password_resets", "audit_logs" RESTART IDENTITY CASCADE`,
   );
 };
 

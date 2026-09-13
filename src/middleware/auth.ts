@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError } from '@/utils/helpers';
 import { ErrorCodes } from '@/utils/errorCodes';
 import { verifyAccessToken, TokenPayload } from '@/services/token.service';
+import { prisma } from '@/config/database';
 
 export interface AuthUser {
   userId: string;
@@ -34,10 +35,20 @@ const attachUser = (req: AuthRequest, payload: TokenPayload): void => {
 };
 
 /** Requires a full access token (post-completion / post-login sessions). */
-export const authenticate = (req: AuthRequest, _res: Response, next: NextFunction): void => {
+export const authenticate = async (req: AuthRequest, _res: Response, next: NextFunction): Promise<void> => {
   try {
     const token = extractBearerToken(req);
     const payload = verifyAccessToken(token);
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { email: true, role: true, isActive: true, deletedAt: true },
+    });
+    if (!user || !user.isActive || user.deletedAt) {
+      throw new AppError('Authentication required', 401, true, ErrorCodes.UNAUTHORIZED);
+    }
+    if (user.email !== payload.email || user.role !== payload.role) {
+      throw new AppError('Token permissions are no longer valid', 401, true, ErrorCodes.TOKEN_INVALID);
+    }
     attachUser(req, payload);
     next();
   } catch (err) {

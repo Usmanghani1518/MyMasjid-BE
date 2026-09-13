@@ -11,10 +11,12 @@ import { createDocsRouter } from '@/docs/router';
 // Register module docs (must come before specs are built)
 import '@/modules/auth/auth.docs';
 import '@/modules/admin/admin.docs';
+import '@/modules/campaign/campaign.docs';
 
 // Module routes
 import authRoutes from '@/modules/auth/auth.routes';
 import adminRoutes from '@/modules/admin/admin.routes';
+import campaignRoutes from '@/modules/campaign/campaign.routes';
 
 const app = express();
 
@@ -75,6 +77,8 @@ if (config.ENABLE_API_DOCS) {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/v1/admin/compliance', adminRoutes);
+app.use('/api/v1/masjid/campaigns', campaignRoutes);
+app.use('/api/masjid/campaigns', campaignRoutes);
 
 // ==================== 404 Handler ====================
 app.use((_req, _res, next) => {
