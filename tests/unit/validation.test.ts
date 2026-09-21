@@ -30,7 +30,7 @@ describe('validation mapper', () => {
   });
 
   it('maps a too-short password to PASSWORD_TOO_SHORT', () => {
-    // Wrap the schema the way request schemas do, so the field path is "password".
+    
     const wrapped = z.object({ body: z.object({ password: passwordSchema }) });
     const result = wrapped.safeParse({ body: { password: 'Ab1' } });
     const errors = toApiErrors(result.error!);

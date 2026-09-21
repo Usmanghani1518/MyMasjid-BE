@@ -88,10 +88,10 @@ const BCRYPT_ROUNDS = 12;
 
 const hashPassword = (password: string): Promise<string> => bcrypt.hash(password, BCRYPT_ROUNDS);
 
-/**
- * Persists a new refresh token and returns the full token pair.
- * Used by login and by registration completion for all roles.
- */
+
+
+
+
 export const issueTokenPair = async (
   user: TokenUser,
   ctx: TokenContext = {},
@@ -111,7 +111,7 @@ const toTokenUser = (user: { id: string; email: string; role: string }): TokenUs
   role: user.role,
 });
 
-/** Password verification with timing-safe bcrypt compare. */
+
 export const verifyPassword = async (user: { password: string }, plain: string): Promise<boolean> =>
   bcrypt.compare(plain, user.password);
 
@@ -120,7 +120,7 @@ export interface LoginResult {
   tokens: TokenPair;
 }
 
-/** Email + password login for active accounts. */
+
 export const login = async (
   email: string,
   password: string,
@@ -407,10 +407,10 @@ export interface RefreshResult {
   tokens: TokenPair;
 }
 
-/**
- * Rotates a refresh token (revokes the old one, issues a successor) and returns
- * a fresh access token. Enables reuse detection for stolen tokens.
- */
+
+
+
+
 export const refresh = async (
   refreshToken: string,
   ctx: TokenContext = {},
@@ -442,7 +442,7 @@ export const refresh = async (
   };
 };
 
-/** Revokes a refresh token (logout). */
+
 export const logout = async (refreshToken: string, ctx: TokenContext = {}): Promise<void> => {
   await revokeRefreshToken(refreshToken);
   void audit({

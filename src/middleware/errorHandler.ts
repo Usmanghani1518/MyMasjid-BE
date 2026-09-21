@@ -5,10 +5,10 @@ import { ValidationError } from '@/utils/validation';
 import { errorBody, ApiError } from '@/utils/response';
 import { ErrorCodes } from '@/utils/errorCodes';
 
-/**
- * Prisma error → (status, code, message) mapping.
- * Only well-known errors are surfaced; everything else stays generic.
- */
+
+
+
+
 const mapPrismaError = (
   err: Prisma.PrismaClientKnownRequestError,
 ): { status: number; errors: ApiError[] } => {
@@ -67,7 +67,7 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction,
 ): void => {
-  // ==================== Known application errors ====================
+  
   if (err instanceof ValidationError) {
     res.status(err.statusCode).json(errorBody(err.message, err.errors));
     return;
@@ -82,14 +82,14 @@ export const errorHandler = (
     return;
   }
 
-  // ==================== Prisma known errors ====================
+  
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     const mapped = mapPrismaError(err);
     res.status(mapped.status).json(errorBody(mapped.errors[0].message, mapped.errors));
     return;
   }
 
-  // ==================== Unknown errors ====================
+  
   logger.error({ err }, 'Unhandled error');
   res.status(500).json(errorBody('Internal server error', [{ code: ErrorCodes.INTERNAL_SERVER_ERROR, message: 'Internal server error' }]));
 };

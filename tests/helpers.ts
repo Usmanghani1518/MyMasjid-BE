@@ -6,13 +6,13 @@ import { Role } from '@/generated/prisma/enums';
 import { setTestMailer, OutboundMail } from '@/services/email.service';
 import { testDbAvailable } from './setup';
 
-/** Skip helper for integration suites that require a real test database. */
+
 export const describeIfDb = (name: string, fn: () => void) => {
   const describeFn = testDbAvailable ? describe : describe.skip;
   describeFn(name, fn);
 };
 
-/** Captures outbound emails in-memory so tests can assert on them. */
+
 export const installEmailCapture = (): { sent: OutboundMail[]; getOtpCode: (i?: number) => string } => {
   const sent: OutboundMail[] = [];
   setTestMailer({
@@ -30,11 +30,13 @@ export const installEmailCapture = (): { sent: OutboundMail[]; getOtpCode: (i?: 
   return { sent, getOtpCode };
 };
 
-/** Wipes all tables. Uses the active (test) schema. */
+
 export const truncateAll = async (): Promise<void> => {
   await prisma.$executeRawUnsafe(
     `TRUNCATE TABLE "users", "donors", "volunteers", "masjids", "trustees",
-     "uploaded_documents", "campaigns", "otps", "refresh_tokens", "password_resets", "audit_logs" RESTART IDENTITY CASCADE`,
+     "uploaded_documents", "campaigns", "projects", "project_milestones", "milestone_comments", "milestone_updates",
+     "construction_logs", "construction_log_assets", "project_assets", "contractor_reports", "budget_allocations",
+     "expenditures", "invoices", "budget_forecasts", "otps", "refresh_tokens", "password_resets", "audit_logs" RESTART IDENTITY CASCADE`,
   );
 };
 
@@ -44,7 +46,7 @@ export interface TestUser {
   password: string;
 }
 
-/** Creates a user directly in the DB (bcrypt hashed). */
+
 export const createUser = async (email: string, opts: { role?: Role; password?: string } = {}): Promise<TestUser> => {
   const password = opts.password ?? 'Passw0rd123!';
   const user = await prisma.user.create({
@@ -58,7 +60,7 @@ export const createUser = async (email: string, opts: { role?: Role; password?: 
   return { id: user.id, email: user.email, password };
 };
 
-/** Logs in via the API and returns the full token pair. */
+
 export const login = async (email: string, password: string) => {
   const res = await request(app).post('/api/v1/auth/login').send({ email, password });
   if (res.status !== 200) throw new Error(`Login failed (${res.status}): ${JSON.stringify(res.body)}`);

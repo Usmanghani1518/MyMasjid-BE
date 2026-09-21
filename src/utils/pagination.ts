@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { AppError } from '@/utils/helpers';
 import { ErrorCodes } from '@/utils/errorCodes';
 
-/** Page metadata embedded in list responses. */
+
 export interface PaginationMeta {
   page: number;
   limit: number;
@@ -29,10 +29,10 @@ const paginationSchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
-/**
- * Parses + validates pagination/sorting query params.
- * `allowedSortFields` restricts sortBy to known columns (prevents injection into orderBy).
- */
+
+
+
+
 export const parsePagination = (
   query: Record<string, unknown>,
   allowedSortFields: string[] = ['createdAt', 'updatedAt'],
@@ -51,7 +51,7 @@ export const parsePagination = (
   return { page, limit, skip: (page - 1) * limit, sortBy, sortOrder };
 };
 
-/** Builds a Prisma-compatible orderBy clause from parsed pagination. */
+
 export const toOrderBy = (pagination: PaginationInput): Record<string, 'asc' | 'desc'> => ({
   [pagination.sortBy]: pagination.sortOrder,
 });
@@ -63,7 +63,7 @@ export const buildPaginationMeta = (total: number, pagination: PaginationInput):
   totalPages: total === 0 ? 0 : Math.ceil(total / pagination.limit),
 });
 
-/** Paginated response shape used consistently by list endpoints. */
+
 export interface Paginated<T> {
   items: T[];
   meta: PaginationMeta;

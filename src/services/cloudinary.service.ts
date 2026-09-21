@@ -26,3 +26,20 @@ export const uploadCampaignMedia = async (buffer: Buffer, mimeType: string): Pro
     stream.end(buffer);
   });
 };
+
+export const uploadProjectFile = async (
+  buffer: Buffer,
+  mimeType: string,
+  projectId: string,
+  purpose: string,
+): Promise<UploadApiResponse> => {
+  assertConfigured();
+  const resourceType = mimeType === 'application/pdf' ? 'raw' : mimeType.startsWith('video/') ? 'video' : 'image';
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: `mymasjid/projects/${projectId}/${purpose.toLowerCase()}`, resource_type: resourceType },
+      (error, result) => (error || !result ? reject(error ?? new Error('Upload failed')) : resolve(result)),
+    );
+    stream.end(buffer);
+  });
+};

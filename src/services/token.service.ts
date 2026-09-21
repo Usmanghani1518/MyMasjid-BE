@@ -29,7 +29,7 @@ interface TokenContext {
 
 const ISSUER = 'mymasjid';
 
-/** Full access token used after login or completed donor/volunteer registration. */
+
 export const generateAccessToken = (user: TokenUser): string =>
   jwt.sign({ sub: user.id, email: user.email, role: user.role, type: 'access' }, config.JWT_SECRET, {
     expiresIn: config.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
@@ -52,7 +52,7 @@ export const verifyAccessToken = (token: string): TokenPayload => {
   }
 };
 
-// ==================== Refresh tokens (opaque, revocable, hashed) ====================
+
 
 export interface RefreshTokenRecord {
   plainToken: string;
@@ -60,7 +60,7 @@ export interface RefreshTokenRecord {
   expiresAt: Date;
 }
 
-/** Creates a fresh refresh token record. Caller persists `record` via prisma. */
+
 export const createRefreshToken = (
   userId: string,
   ctx: TokenContext = {},
@@ -88,10 +88,10 @@ export interface RotatedRefreshResult {
   expiresAt: Date;
 }
 
-/**
- * Validates an existing refresh token, revokes it, and issues a successor.
- * Used by POST /auth/refresh for rotation-based reuse detection.
- */
+
+
+
+
 export const rotateRefreshToken = async (
   oldPlainToken: string,
   ctx: TokenContext = {},
@@ -130,7 +130,7 @@ export const rotateRefreshToken = async (
   return { plainToken: next.plainToken, userId: existing.userId, tokenHash: next.tokenHash, expiresAt: next.expiresAt };
 };
 
-/** Revokes a refresh token (logout / security). Idempotent. */
+
 export const revokeRefreshToken = async (plainToken: string): Promise<void> => {
   const tokenHash = hashToken(plainToken);
   await prisma.refreshToken.updateMany({

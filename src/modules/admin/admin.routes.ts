@@ -23,7 +23,7 @@ const adminContext = (req: AuthRequest) => ({
   userAgent: req.get('user-agent'),
 });
 
-// ==================== List applications ====================
+
 router.get(
   '/applications',
   authenticate,
@@ -35,7 +35,7 @@ router.get(
   }),
 );
 
-// ==================== View application ====================
+
 router.get(
   '/applications/:id',
   authenticate,
@@ -47,7 +47,7 @@ router.get(
   }),
 );
 
-// ==================== Approve ====================
+
 router.post(
   '/applications/:id/approve',
   authenticate,
@@ -59,7 +59,7 @@ router.post(
   }),
 );
 
-// ==================== Deny with structured reasons ====================
+
 router.post(
   '/applications/:id/deny',
   authenticate,

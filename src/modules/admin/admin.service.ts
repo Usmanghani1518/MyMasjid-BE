@@ -87,7 +87,7 @@ const toSafeMasjid = (masjid: Awaited<ReturnType<typeof getApplicationOrThrow>>)
   })),
 });
 
-/** GET /admin/compliance/applications — paginated, filterable, sortable. */
+
 export const listApplications = async (
   query: Record<string, unknown>,
   ctx: AdminContext,
@@ -173,7 +173,7 @@ const getApplicationOrThrow = async (id: string) => {
   return masjid;
 };
 
-/** GET /admin/compliance/applications/:id — full detail with masked sensitive fields. */
+
 export const getApplication = async (id: string, ctx: AdminContext): Promise<ReturnType<typeof toSafeMasjid>> => {
   const masjid = await getApplicationOrThrow(id);
 
@@ -191,7 +191,7 @@ export const getApplication = async (id: string, ctx: AdminContext): Promise<Ret
   return toSafeMasjid(masjid);
 };
 
-/** POST /admin/compliance/applications/:id/approve. */
+
 export const approveApplication = async (
   id: string,
   ctx: AdminContext,
@@ -230,7 +230,7 @@ export interface DenyReasonInput {
   message: string;
 }
 
-/** POST /admin/compliance/applications/:id/deny — structured reasons stored + emailed. */
+
 export const denyApplication = async (
   id: string,
   ctx: AdminContext,

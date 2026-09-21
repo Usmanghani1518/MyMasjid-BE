@@ -8,7 +8,7 @@ import {
 } from '@/utils/constants';
 import { ErrorCodes } from '@/utils/errorCodes';
 
-/** Custom issue code carried through zod `params`, read by the error mapper. */
+
 export const withCode = (code: string) => ({ code });
 
 export const emailSchema = z
@@ -45,10 +45,10 @@ export const countrySchema = z
 
 export const idTypeSchema = z.enum(ID_TYPES, { message: 'Invalid ID type' });
 
-/** Optional ID number (must have idType when present — enforced per-step with refine). */
+
 export const idNumberSchema = z.string().trim().min(4, 'Enter a valid ID number').max(50);
 
-/** Date of birth: must be a real date in the past and ≥10 years ago. */
+
 export const dateOfBirthSchema = z.coerce
   .date()
   .refine((d) => d < new Date(), {

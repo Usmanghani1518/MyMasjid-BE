@@ -42,6 +42,43 @@ enum CampaignPublicationStatus {
   PUBLISHED
 }
 
+enum ProjectStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+}
+
+enum ProjectMilestoneStatus {
+  COMPLETED
+  IN_PROGRESS
+  UPCOMING
+}
+
+enum ConstructionLogType {
+  DAILY
+  WEEKLY
+}
+
+enum ProjectMediaKind {
+  IMAGE
+  VIDEO
+  THREE_D_RENDER
+}
+
+enum ExpenditureStatus {
+  PENDING
+  APPROVED
+  PAID
+  VOID
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  VOID
+}
+
 // ==================== Models ====================
 
 model User {
@@ -94,6 +131,268 @@ model Campaign {
   @@index([masjidId, publicationStatus])
   @@index([startDate, endDate])
   @@map("campaigns")
+}
+
+model Project {
+  id                   String        @id @default(uuid())
+  masjidId             String
+  masjid               Masjid        @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  name                 String
+  category             String
+  managerName          String
+  location             String
+  description          String
+  coverImageUrl        String?
+  status               ProjectStatus @default(PLANNED)
+  currency             String        @default("GBP")
+  estimatedTotalCost   Decimal?      @db.Decimal(14, 2)
+  fundraisingGoal      Decimal?      @db.Decimal(14, 2)
+  seedFunding          Decimal       @default(0) @db.Decimal(14, 2)
+  raisedAmount         Decimal       @default(0) @db.Decimal(14, 2)
+  constructionProgress Int           @default(0)
+  notice               String?
+  startDate            DateTime?
+  completionDate       DateTime?
+  fundingSources       Json          @default("[]")
+  media                Json          @default("[]")
+  complianceDocuments  Json          @default("[]")
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  deletedAt            DateTime?
+
+  milestones        ProjectMilestone[]
+  constructionLogs  ConstructionLog[]
+  assets            ProjectAsset[]
+  contractorReports ContractorReport[]
+  budgetAllocations BudgetAllocation[]
+  expenditures      Expenditure[]
+  invoices           Invoice[]
+  budgetForecasts    BudgetForecast[]
+
+  @@index([masjidId, status])
+  @@index([masjidId, category])
+  @@index([masjidId, createdAt])
+  @@map("projects")
+}
+
+model ProjectMilestone {
+  id                String                 @id @default(uuid())
+  projectId         String
+  project           Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name              String
+  phaseLabel        String?
+  description       String?
+  status            ProjectMilestoneStatus @default(UPCOMING)
+  durationWeeks     Int?
+  progressPercent   Int                    @default(0)
+  plannedStartDate  DateTime?
+  dueDate           DateTime?
+  completedAt       DateTime?
+  primaryContractor String?
+  leadEngineer      String?
+  position          Int                    @default(0)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  deletedAt         DateTime?
+
+  constructionLogs ConstructionLog[]
+  assets            ProjectAsset[]
+  comments          MilestoneComment[]
+  updates           MilestoneUpdate[]
+
+  @@index([projectId, status, position])
+  @@index([projectId, dueDate])
+  @@map("project_milestones")
+}
+
+model MilestoneComment {
+  id          String           @id @default(uuid())
+  milestoneId String
+  milestone   ProjectMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  authorId    String
+  authorName  String
+  body        String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+
+  @@index([milestoneId, createdAt])
+  @@map("milestone_comments")
+}
+
+model MilestoneUpdate {
+  id              String                 @id @default(uuid())
+  milestoneId     String
+  milestone       ProjectMilestone       @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  authorId        String
+  authorName      String
+  message         String
+  progressPercent Int?
+  status          ProjectMilestoneStatus?
+  createdAt       DateTime               @default(now())
+
+  @@index([milestoneId, createdAt])
+  @@map("milestone_updates")
+}
+
+model ConstructionLog {
+  id                 String               @id @default(uuid())
+  projectId          String
+  project            Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestoneId        String?
+  milestone          ProjectMilestone?    @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  authorId            String
+  authorName          String
+  type                ConstructionLogType  @default(DAILY)
+  logDate             DateTime
+  title               String
+  body                String
+  progressPercent     Int?
+  delayMinutes        Int                  @default(0)
+  safetyIncident      Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  deletedAt           DateTime?
+
+  assets ConstructionLogAsset[]
+
+  @@index([projectId, logDate])
+  @@index([milestoneId])
+  @@map("construction_logs")
+}
+
+model ConstructionLogAsset {
+  id        String            @id @default(uuid())
+  logId     String
+  log       ConstructionLog   @relation(fields: [logId], references: [id], onDelete: Cascade)
+  kind      ProjectMediaKind
+  url       String
+  label     String
+  position  Int               @default(0)
+  createdAt DateTime          @default(now())
+
+  @@index([logId, position])
+  @@map("construction_log_assets")
+}
+
+model ProjectAsset {
+  id          String            @id @default(uuid())
+  projectId   String
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestoneId String?
+  milestone   ProjectMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  kind        ProjectMediaKind
+  url         String
+  label       String
+  altText     String?
+  position    Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  deletedAt   DateTime?
+
+  @@index([projectId, position])
+  @@index([milestoneId])
+  @@map("project_assets")
+}
+
+model ContractorReport {
+  id              String   @id @default(uuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title           String
+  reportType      String
+  contractorName  String?
+  reportingPeriod String?
+  description     String?
+  fileUrl         String
+  verified        Boolean  @default(false)
+  verifiedBy      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@index([projectId, createdAt])
+  @@map("contractor_reports")
+}
+
+model BudgetAllocation {
+  id               String   @id @default(uuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name             String
+  totalBudget      Decimal  @db.Decimal(14, 2)
+  warningThreshold Int      @default(80)
+  position         Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deletedAt        DateTime?
+
+  expenditures Expenditure[]
+  invoices     Invoice[]
+
+  @@index([projectId, position])
+  @@map("budget_allocations")
+}
+
+model Expenditure {
+  id               String            @id @default(uuid())
+  projectId        String
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  allocationId     String?
+  allocation       BudgetAllocation? @relation(fields: [allocationId], references: [id], onDelete: SetNull)
+  vendor           String
+  description      String
+  amount           Decimal           @db.Decimal(14, 2)
+  expenditureDate  DateTime
+  status           ExpenditureStatus @default(PENDING)
+  invoiceReference String?
+  receiptUrl       String?
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+
+  @@index([projectId, expenditureDate])
+  @@index([allocationId])
+  @@map("expenditures")
+}
+
+model Invoice {
+  id           String            @id @default(uuid())
+  projectId    String
+  project      Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  allocationId String?
+  allocation   BudgetAllocation? @relation(fields: [allocationId], references: [id], onDelete: SetNull)
+  vendor       String
+  invoiceNumber String
+  amount       Decimal           @db.Decimal(14, 2)
+  dueDate      DateTime
+  status       InvoiceStatus     @default(PENDING)
+  paidAt       DateTime?
+  documentUrl  String?
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+
+  @@unique([projectId, invoiceNumber])
+  @@index([projectId, dueDate])
+  @@index([allocationId])
+  @@map("invoices")
+}
+
+model BudgetForecast {
+  id             String   @id @default(uuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  month          DateTime
+  forecastAmount Decimal  @db.Decimal(14, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([projectId, month])
+  @@index([projectId, month])
+  @@map("budget_forecasts")
 }
 
 model Donor {
@@ -202,6 +501,7 @@ model Masjid {
   trustees  Trustee[]
   documents UploadedDocument[]
   campaigns Campaign[]
+  projects  Project[]
 
   @@index([status])
   @@index([ownerId])

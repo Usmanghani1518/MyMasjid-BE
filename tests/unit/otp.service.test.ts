@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OtpPurpose } from '@/generated/prisma/enums';
 
-// In-memory OTP store shared between the prisma mock and the tests.
+
 const { store, sentCodes } = vi.hoisted(() => {
   const store = new Map<string, Record<string, unknown>>();
   const sentCodes: string[] = [];
@@ -60,7 +60,7 @@ const KEY = `${EMAIL}:${PURPOSE}`;
 const lastCode = (): string => sentCodes[sentCodes.length - 1];
 const record = () => store.get(KEY);
 
-/** Backdates the last-sent timestamp so the resend cooldown is satisfied. */
+
 const expireCooldown = (): void => {
   if (record()) record()!.lastSentAt = new Date(0);
 };
@@ -95,7 +95,7 @@ describe('otp.service', () => {
     await sendOtp(EMAIL, PURPOSE);
     expireCooldown();
     const rec = record()!;
-    rec.resendCount = 5; // 5 resends already used
+    rec.resendCount = 5; 
     await expect(sendOtp(EMAIL, PURPOSE)).rejects.toMatchObject({ code: 'OTP_MAX_RESENDS' });
   });
 
@@ -116,11 +116,11 @@ describe('otp.service', () => {
     for (let i = 0; i < 4; i += 1) {
       await expect(verifyOtp(EMAIL, PURPOSE, '000000')).rejects.toMatchObject({ code: 'OTP_INVALID' });
     }
-    // 5th failure triggers the lockout.
+    
     await expect(verifyOtp(EMAIL, PURPOSE, '000000')).rejects.toMatchObject({ code: 'OTP_INVALID' });
     expect(record()!.lockUntil).toBeInstanceOf(Date);
 
-    // Even a correct code is now rejected while locked.
+    
     await expect(verifyOtp(EMAIL, PURPOSE, lastCode())).rejects.toMatchObject({ code: 'OTP_LOCKED' });
   });
 

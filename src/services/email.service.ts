@@ -26,14 +26,14 @@ interface Mailer {
   sendMail: (mail: OutboundMail) => Promise<unknown>;
 }
 
-/** Test hook: replace the mailer (e.g. nodemailer jsonTransport) to capture sent emails. */
+
 let testMailer: Mailer | null = null;
 
 export const setTestMailer = (mailer: Mailer | null): void => {
   testMailer = mailer;
 };
 
-/** Dev/console mailer — logs the email so OTPs are visible locally without SMTP. */
+
 const consoleMailer: Mailer = {
   sendMail: async (mail) => {
     logger.info(
@@ -93,7 +93,7 @@ const deliver = (to: string, rendered: RenderedEmail): Promise<void> =>
 const queueDelivery = (to: string, rendered: RenderedEmail): void =>
   queueMail({ to, subject: rendered.subject, html: rendered.html, text: rendered.text });
 
-// ==================== Convenience senders ====================
+
 
 export const sendDonorOtpEmail = (
   to: string,

@@ -3,14 +3,14 @@ import { AppError } from '@/utils/helpers';
 import { ApiError } from '@/utils/response';
 import { ErrorCodes } from '@/utils/errorCodes';
 
-/**
- * Converts a Zod v4 error into field-level API errors with stable codes.
- * `field` is the dotted path (e.g. "profile.phoneNumber"), codes come from ErrorCodes.
- */
+
+
+
+
 export const toApiErrors = (error: ZodError): ApiError[] =>
   error.issues.map((issue): ApiError => {
-    // The request schemas wrap input as { body, query, params }; strip that prefix
-    // so field names in errors match the API payload (e.g. "email", not "body.email").
+    
+    
     const rawField = issue.path.join('.');
     const field = rawField.replace(/^(body|query|params)\./, '');
     const message = issue.message;
@@ -62,7 +62,7 @@ export const toApiErrors = (error: ZodError): ApiError[] =>
         };
 
       case 'custom': {
-        // Schemas may attach a stable code via `params: { code }`.
+        
         const customCode = (issue.params as { code?: string } | undefined)?.code;
         return { field, code: customCode ?? ErrorCodes.VALIDATION_FAILED, message };
       }
@@ -72,10 +72,10 @@ export const toApiErrors = (error: ZodError): ApiError[] =>
     }
   });
 
-/**
- * Error carrying field-level validation failures. The error handler renders it
- * as `{ success: false, message, data: null, errors: ApiError[] }` with HTTP 400.
- */
+
+
+
+
 export class ValidationError extends AppError {
   public readonly errors: ApiError[];
 

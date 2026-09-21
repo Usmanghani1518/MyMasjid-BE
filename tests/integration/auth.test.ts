@@ -53,12 +53,12 @@ describeIfDb('Authentication', () => {
     const newRefresh = rotated.body.data.tokens.refreshToken;
     expect(newRefresh).not.toBe(original);
 
-    // The old token is now revoked → reuse is rejected.
+    
     const reuse = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: original });
     expect(reuse.status).toBe(401);
     expect(reuse.body.errors[0].code).toBe('REFRESH_TOKEN_REVOKED');
 
-    // The new token still works.
+    
     const next = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: newRefresh });
     expect(next.status).toBe(200);
 

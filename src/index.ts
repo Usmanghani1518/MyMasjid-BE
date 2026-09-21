@@ -5,17 +5,17 @@ import { logger } from '@/utils/helpers';
 
 const startServer = async () => {
   try {
-    // Connect to database
+    
     await connectDatabase();
 
-    // Start HTTP server
+    
     const server = app.listen(config.PORT, () => {
       logger.info(`🚀 Server running on port ${config.PORT}`);
       logger.info(`📍 Environment: ${config.NODE_ENV}`);
       logger.info(`🏥 Health check: http://localhost:${config.PORT}/api/v1/health`);
     });
 
-    // Graceful shutdown
+    
     const gracefulShutdown = async (signal: string) => {
       logger.info(`${signal} received. Shutting down gracefully...`);
       server.close(async () => {

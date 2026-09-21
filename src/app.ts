@@ -8,23 +8,27 @@ import { AppError } from '@/utils/helpers';
 import { ErrorCodes } from '@/utils/errorCodes';
 import { createDocsRouter } from '@/docs/router';
 
-// Register module docs (must come before specs are built)
+
 import '@/modules/auth/auth.docs';
 import '@/modules/admin/admin.docs';
 import '@/modules/campaign/campaign.docs';
+import '@/modules/project/project.docs';
+import '@/modules/project/tracking.docs';
 
-// Module routes
+
 import authRoutes from '@/modules/auth/auth.routes';
 import adminRoutes from '@/modules/admin/admin.routes';
 import campaignRoutes from '@/modules/campaign/campaign.routes';
+import projectRoutes from '@/modules/project/project.routes';
+import projectTrackingRoutes from '@/modules/project/tracking.routes';
 
 const app = express();
 
-// ==================== Security Middleware ====================
+
 app.disable('x-powered-by');
 app.use(helmet());
 
-// CORS — restricted to the configured frontend origin(s) only.
+
 const allowedOrigins = config.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
 app.use(
   cors({
@@ -37,11 +41,11 @@ app.use(
 
 app.use(compression());
 
-// ==================== Body Parsing ====================
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// ==================== Health Check ====================
+
 app.get('/api/v1/health', (_req, res) => {
   res.json({
     status: 'ok',
@@ -50,11 +54,11 @@ app.get('/api/v1/health', (_req, res) => {
   });
 });
 
-// ==================== API Documentation ====================
+
 if (config.ENABLE_API_DOCS) {
-  // Scalar renders client-side: it loads its bundle from jsDelivr and runs an
-  // inline <script> initializer. Both are blocked by the default (strict) Helmet
-  // CSP, so relax the CSP ONLY for the docs page, leaving the API strict.
+  
+  
+  
   const docsCspDirectives = helmet.contentSecurityPolicy.getDefaultDirectives();
   docsCspDirectives['script-src'] = ["'self'", 'https://cdn.jsdelivr.net', "'unsafe-inline'"];
   docsCspDirectives['connect-src'] = ["'self'", 'https://cdn.jsdelivr.net'];
@@ -73,19 +77,21 @@ if (config.ENABLE_API_DOCS) {
   });
 }
 
-// ==================== API Routes ====================
+
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/v1/admin/compliance', adminRoutes);
 app.use('/api/v1/masjid/campaigns', campaignRoutes);
 app.use('/api/masjid/campaigns', campaignRoutes);
+app.use('/api/v1/masjid/projects', projectTrackingRoutes, projectRoutes);
+app.use('/api/masjid/projects', projectTrackingRoutes, projectRoutes);
 
-// ==================== 404 Handler ====================
+
 app.use((_req, _res, next) => {
   next(new AppError('Route not found', 404, true, ErrorCodes.ROUTE_NOT_FOUND));
 });
 
-// ==================== Global Error Handler ====================
+
 app.use(errorHandler);
 
 export { app };

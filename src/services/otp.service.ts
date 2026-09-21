@@ -47,10 +47,10 @@ const queuePurposeEmail = (to: string, purpose: OtpPurpose, recipientName: strin
   }
 };
 
-/**
- * Sends (or resends) an OTP for a given email + purpose.
- * Enforces: 10-minute expiry, 60s resend cooldown, max 5 resends, and lockout state.
- */
+
+
+
+
 export const sendOtp = async (
   email: string,
   purpose: OtpPurpose,
@@ -122,13 +122,13 @@ export const sendOtp = async (
   return { cooldownUntil: new Date(Date.now() + COOLDOWN_MS) };
 };
 
-/** Resend is the same operation; the cooldown/limit logic lives in sendOtp. */
+
 export const resendOtp = sendOtp;
 
-/**
- * Verifies a submitted OTP. On the 5th consecutive failure the email+purpose is
- * locked for 15 minutes (config.OTP_LOCK_MINUTES).
- */
+
+
+
+
 export const verifyOtp = async (
   email: string,
   purpose: OtpPurpose,

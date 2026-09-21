@@ -1,7 +1,7 @@
 import pino from 'pino';
 import { config } from '@/config';
 
-// ==================== Logger ====================
+
 export const logger = pino({
   level: config.LOG_LEVEL,
   transport:
@@ -13,11 +13,11 @@ export const logger = pino({
       : undefined,
 });
 
-// ==================== App Error ====================
+
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
-  /** Stable machine-readable error code (see utils/errorCodes.ts). */
+  
   public readonly code?: string;
 
   constructor(
@@ -34,7 +34,7 @@ export class AppError extends Error {
   }
 }
 
-// ==================== Async Handler ====================
+
 type AsyncHandler = (req: any, res: any, next: any) => Promise<any>;
 
 export const asyncHandler =

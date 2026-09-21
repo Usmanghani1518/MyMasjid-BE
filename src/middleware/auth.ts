@@ -34,7 +34,7 @@ const attachUser = (req: AuthRequest, payload: TokenPayload): void => {
   };
 };
 
-/** Requires a full access token (post-completion / post-login sessions). */
+
 export const authenticate = async (req: AuthRequest, _res: Response, next: NextFunction): Promise<void> => {
   try {
     const token = extractBearerToken(req);
@@ -56,7 +56,7 @@ export const authenticate = async (req: AuthRequest, _res: Response, next: NextF
   }
 };
 
-/** Role guard — must run after `authenticate`. */
+
 export const requireRoles =
   (...roles: string[]) =>
   (req: AuthRequest, _res: Response, next: NextFunction): void => {

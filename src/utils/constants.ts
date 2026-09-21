@@ -1,4 +1,4 @@
-/** Allowed values for list-type registration fields (validated server-side). */
+
 
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 72;
@@ -62,8 +62,8 @@ export const MASJID_SERVICES = [
 
 export const TRUSTEE_ROLES = ['CHAIR', 'TREASURER', 'SECRETARY', 'TRUSTEE'] as const;
 
-/** Basic country-code check (2-letter uppercase, ISO 3166-1 alpha-2). */
+
 export const COUNTRY_CODE_REGEX = /^[A-Z]{2}$/;
 
-/** Phone: optional + prefix, digits, spaces, dashes. Kept permissive; validated for shape only. */
+
 export const PHONE_REGEX = /^\+?[0-9][0-9\s-]{6,19}$/;

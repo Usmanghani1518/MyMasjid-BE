@@ -1,10 +1,10 @@
-/**
- * Seed data for local development.
- * Creates: super admin, an active donor, an active volunteer, and masjids in
- * every workflow state (approved, denied, pending, draft).
- *
- * Run: npm run db:seed
- */
+
+
+
+
+
+
+
 import bcrypt from 'bcrypt';
 import { prisma } from '@/config/database';
 import { Role, RegistrationStatus } from '@/generated/prisma/enums';
@@ -27,12 +27,12 @@ const hashPassword = (password: string): Promise<string> => bcrypt.hash(password
 async function main(): Promise<void> {
   console.log('🌱 Seeding database...');
 
-  // Clean up previous seed runs (cascades to donor/volunteer/masjid/trustees/documents/refresh tokens).
+  
   await prisma.user.deleteMany({ where: { email: { in: seedEmails } } });
 
   const passwordHash = await hashPassword(SEED_PASSWORD);
 
-  // ==================== Super admin ====================
+  
   const admin = await prisma.user.create({
     data: {
       email: 'admin@mymasjid.org',
@@ -42,7 +42,7 @@ async function main(): Promise<void> {
     },
   });
 
-  // ==================== Active donor ====================
+  
   const donorUser = await prisma.user.create({
     data: {
       email: 'donor@example.com',
@@ -71,7 +71,7 @@ async function main(): Promise<void> {
     },
   });
 
-  // ==================== Active volunteer ====================
+  
   const volunteerUser = await prisma.user.create({
     data: {
       email: 'volunteer@example.com',
@@ -101,7 +101,7 @@ async function main(): Promise<void> {
     },
   });
 
-  // ==================== Approved masjid ====================
+  
   const approvedOwner = await prisma.user.create({
     data: {
       email: 'masjid-approved@example.com',
@@ -167,7 +167,7 @@ async function main(): Promise<void> {
     },
   });
 
-  // ==================== Denied masjid ====================
+  
   const deniedOwner = await prisma.user.create({
     data: {
       email: 'masjid-denied@example.com',
@@ -201,7 +201,7 @@ async function main(): Promise<void> {
     },
   });
 
-  // ==================== Pending masjid ====================
+  
   const pendingOwner = await prisma.user.create({
     data: {
       email: 'masjid-pending@example.com',
@@ -253,7 +253,7 @@ async function main(): Promise<void> {
     },
   });
 
-  // ==================== Draft masjid ====================
+  
   const draftOwner = await prisma.user.create({
     data: {
       email: 'masjid-draft@example.com',

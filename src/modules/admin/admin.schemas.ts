@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** List applications with optional status/search filters. Pagination/sort parsed in the service. */
+
 export const listApplicationsSchema = z.object({
   query: z.object({
     status: z.enum(['PENDING_REVIEW', 'APPROVED', 'DENIED', 'DRAFT']).optional(),
@@ -14,7 +14,7 @@ export const applicationParamsSchema = z.object({
   }),
 });
 
-/** Deny with structured, per-field reasons. */
+
 export const denyApplicationSchema = z.object({
   body: z.object({
     reasons: z
