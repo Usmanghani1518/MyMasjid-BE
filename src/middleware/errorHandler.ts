@@ -4,10 +4,7 @@ import { AppError, logger } from '@/utils/helpers';
 import { ValidationError } from '@/utils/validation';
 import { errorBody, ApiError } from '@/utils/response';
 import { ErrorCodes } from '@/utils/errorCodes';
-
-
-
-
+import { requestContext } from '@/middleware/requestLogger';
 
 const mapPrismaError = (
   err: Prisma.PrismaClientKnownRequestError,
@@ -63,33 +60,53 @@ const frontendCode = (code: string): string => {
 
 export const errorHandler = (
   err: Error | AppError,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ): void => {
-  
+  const context = requestContext(req);
+  const respond = (status: number, body: ReturnType<typeof errorBody>): void => {
+    res.status(status).json({
+      ...body,
+      error: { ...body.error, requestId: req.requestId },
+    });
+  };
+
   if (err instanceof ValidationError) {
-    res.status(err.statusCode).json(errorBody(err.message, err.errors));
+    logger.warn({ ...context, err, statusCode: err.statusCode }, 'Request validation failed');
+    respond(err.statusCode, errorBody(err.message, err.errors));
     return;
   }
 
   if (err instanceof AppError) {
     const extra = (err as AppError & { extra?: Record<string, unknown> }).extra ?? {};
     const code = frontendCode(err.code ?? ErrorCodes.INTERNAL_SERVER_ERROR);
-    res
-      .status(err.statusCode)
-      .json(errorBody(err.message, [{ code, message: err.message }], extra));
+    const details = { ...context, err, statusCode: err.statusCode, errorCode: code };
+    if (err.statusCode >= 500) logger.error(details, 'Application error');
+    else logger.warn(details, 'Application error');
+    respond(err.statusCode, errorBody(err.message, [{ code, message: err.message }], extra));
     return;
   }
 
-  
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     const mapped = mapPrismaError(err);
-    res.status(mapped.status).json(errorBody(mapped.errors[0].message, mapped.errors));
+    const details = {
+      ...context,
+      err,
+      statusCode: mapped.status,
+      prismaCode: err.code,
+    };
+    if (mapped.status >= 500) logger.error(details, 'Database request failed');
+    else logger.warn(details, 'Database request failed');
+    respond(mapped.status, errorBody(mapped.errors[0].message, mapped.errors));
     return;
   }
 
-  
-  logger.error({ err }, 'Unhandled error');
-  res.status(500).json(errorBody('Internal server error', [{ code: ErrorCodes.INTERNAL_SERVER_ERROR, message: 'Internal server error' }]));
+  logger.error({ ...context, err, statusCode: 500 }, 'Unhandled request error');
+  respond(
+    500,
+    errorBody('Internal server error', [
+      { code: ErrorCodes.INTERNAL_SERVER_ERROR, message: 'Internal server error' },
+    ]),
+  );
 };

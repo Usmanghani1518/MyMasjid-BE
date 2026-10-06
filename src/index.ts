@@ -5,23 +5,34 @@ import { logger } from '@/utils/helpers';
 
 const startServer = async () => {
   try {
-    
     await connectDatabase();
 
-    
     const server = app.listen(config.PORT, () => {
-      logger.info(`🚀 Server running on port ${config.PORT}`);
-      logger.info(`📍 Environment: ${config.NODE_ENV}`);
-      logger.info(`🏥 Health check: http://localhost:${config.PORT}/api/v1/health`);
+      logger.info({ port: config.PORT, healthPath: '/api/v1/health' }, 'Server started');
     });
 
-    
+    let shuttingDown = false;
     const gracefulShutdown = async (signal: string) => {
-      logger.info(`${signal} received. Shutting down gracefully...`);
-      server.close(async () => {
-        await disconnectDatabase();
-        logger.info('Server closed');
-        process.exit(0);
+      if (shuttingDown) return;
+      shuttingDown = true;
+      logger.info({ signal }, 'Shutting down gracefully');
+
+      const forceExit = setTimeout(() => {
+        logger.error({ signal }, 'Graceful shutdown timed out');
+        process.exit(1);
+      }, 10_000);
+      forceExit.unref();
+
+      server.close(async (closeError) => {
+        try {
+          if (closeError) throw closeError;
+          await disconnectDatabase();
+          logger.info({ signal }, 'Server closed');
+          process.exit(0);
+        } catch (error) {
+          logger.error({ err: error, signal }, 'Server shutdown failed');
+          process.exit(1);
+        }
       });
     };
 
@@ -29,8 +40,14 @@ const startServer = async () => {
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
     process.on('unhandledRejection', (reason: unknown) => {
-      logger.error({ reason }, 'Unhandled Rejection');
-      server.close(() => process.exit(1));
+      if (reason instanceof Error) logger.error({ err: reason }, 'Unhandled rejection');
+      else logger.error({ reason }, 'Unhandled rejection');
+      void gracefulShutdown('unhandledRejection');
+    });
+
+    process.on('uncaughtException', (error: Error) => {
+      logger.fatal({ err: error }, 'Uncaught exception');
+      void gracefulShutdown('uncaughtException');
     });
   } catch (error) {
     logger.error({ err: error }, 'Failed to start server');

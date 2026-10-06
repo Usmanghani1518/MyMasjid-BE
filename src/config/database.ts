@@ -3,10 +3,6 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { config } from '@/config';
 import { logger } from '@/utils/helpers';
 
-
-
-
-
 const parseSchema = (url: string): string => {
   try {
     return new URL(url).searchParams.get('schema') ?? 'public';
@@ -28,7 +24,7 @@ export const connectDatabase = async (): Promise<void> => {
     logger.info('✅ Database connected successfully');
   } catch (error) {
     logger.error({ err: error }, '❌ Database connection failed');
-    process.exit(1);
+    throw error;
   }
 };
 

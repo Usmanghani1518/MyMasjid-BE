@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch --require tsconfig-paths/register src/index.ts",
     "build": "prisma generate && tsc",
-    "start": "node -r module-alias/register dist/index.js",
+    "start": "node --enable-source-maps -r module-alias/register dist/index.js",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",

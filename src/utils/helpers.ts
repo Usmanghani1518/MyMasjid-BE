@@ -1,9 +1,28 @@
 import pino from 'pino';
+import { NextFunction, Request, Response } from 'express';
 import { config } from '@/config';
-
 
 export const logger = pino({
   level: config.LOG_LEVEL,
+  base: {
+    service: 'mymasjid-api',
+    environment: config.NODE_ENV,
+  },
+  timestamp: pino.stdTimeFunctions.isoTime,
+  redact: {
+    paths: [
+      'req.headers.authorization',
+      'req.headers.cookie',
+      'request.headers.authorization',
+      'request.headers.cookie',
+      'password',
+      'token',
+      'accessToken',
+      'refreshToken',
+      'otp',
+    ],
+    censor: '[REDACTED]',
+  },
   transport:
     config.NODE_ENV === 'development'
       ? {
@@ -13,11 +32,10 @@ export const logger = pino({
       : undefined,
 });
 
-
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
-  
+
   public readonly code?: string;
 
   constructor(
@@ -34,11 +52,10 @@ export class AppError extends Error {
   }
 }
 
-
-type AsyncHandler = (req: any, res: any, next: any) => Promise<any>;
+type AsyncHandler = (req: Request, res: Response, next: NextFunction) => Promise<unknown>;
 
 export const asyncHandler =
   (fn: AsyncHandler) =>
-  (req: any, res: any, next: any) => {
+  (req: Request, res: Response, next: NextFunction): void => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

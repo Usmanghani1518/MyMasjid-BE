@@ -70,15 +70,31 @@ Without SMTP settings, development falls back to console email logging.
 
 See `.env.example`. Main variables:
 
-| Variable | Purpose |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Signs access tokens |
-| `REFRESH_TOKEN_EXPIRES_IN` | Refresh token lifetime |
-| `OTP_*` | OTP length, expiry, cooldown, resend limit, lockout |
-| `CORS_ORIGIN` | Allowed frontend origins |
-| `SMTP_*` | Gmail or other SMTP transport |
-| `TEST_DATABASE_URL` | Optional integration-test schema |
+| Variable                   | Purpose                                                               |
+| -------------------------- | --------------------------------------------------------------------- |
+| `DATABASE_URL`             | PostgreSQL connection string                                          |
+| `JWT_SECRET`               | Signs access tokens                                                   |
+| `REFRESH_TOKEN_EXPIRES_IN` | Refresh token lifetime                                                |
+| `OTP_*`                    | OTP length, expiry, cooldown, resend limit, lockout                   |
+| `CORS_ORIGIN`              | Allowed frontend origins                                              |
+| `SMTP_*`                   | Gmail or other SMTP transport                                         |
+| `TEST_DATABASE_URL`        | Optional integration-test schema                                      |
+| `LOG_LEVEL`                | Minimum JSON log level in production (`info` is recommended)          |
+| `PRISMA_QUERY_LOGS`        | Enables verbose SQL query logs; keep `false` unless debugging briefly |
+
+## Production logging (Render)
+
+Production logs are JSON on standard output, so Render captures them automatically. Every request
+has an `x-request-id` response header and a completion log containing its method, path, status, and
+duration. Error responses also include the same value at `error.requestId`; search for that ID in
+the Render **Logs** page to find the matching error and source-mapped stack trace.
+
+Set `NODE_ENV=production` and `LOG_LEVEL=info` in Render. If more detail is temporarily needed, set
+`LOG_LEVEL=debug` and redeploy. Avoid enabling `PRISMA_QUERY_LOGS` for normal operation because SQL
+logs can be noisy and may reveal application data.
+
+The production start command is `npm start`. It enables Node source maps, which makes stack traces
+refer to the original TypeScript files instead of only `dist/*.js` files.
 
 ## Tests
 
