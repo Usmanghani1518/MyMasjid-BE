@@ -55,6 +55,7 @@ export const donorStartSchema = z.object({
     selectedCauses: z.array(z.enum(donorCauses)).min(1, 'Select at least one cause'),
   }),
 });
+export type DonorStartInput = z.infer<typeof donorStartSchema>['body'];
 
 export const volunteerStartSchema = z.object({
   body: z.object({
@@ -71,6 +72,7 @@ export const volunteerStartSchema = z.object({
     frequency: z.enum(volunteerFrequency).optional().nullable().transform((value) => value ?? null),
   }),
 });
+export type VolunteerStartInput = z.infer<typeof volunteerStartSchema>['body'];
 
 export const verifyRegistrationOtpSchema = z.object({
   body: z.object({
@@ -110,6 +112,7 @@ export const masjidRegisterSchema = z.object({
     })).min(1, 'Upload at least one file'),
   }),
 });
+export type MasjidRegisterInput = z.infer<typeof masjidRegisterSchema>['body'];
 
 export const loginSchema = z.object({
   body: z.object({

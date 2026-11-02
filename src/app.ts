@@ -23,6 +23,8 @@ import projectTrackingRoutes from '@/modules/project/tracking.routes';
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 app.use(requestLogger);
 
 app.disable('x-powered-by');

@@ -8,9 +8,16 @@
 import bcrypt from 'bcrypt';
 import { prisma } from '@/config/database';
 import { Role, RegistrationStatus } from '@/generated/prisma/enums';
+import { encryptSensitive } from '@/services/crypto.service';
 
 const BCRYPT_ROUNDS = 12;
-const SEED_PASSWORD = 'Passw0rd123!';
+const getSeedPassword = (): string => {
+  if (process.env.NODE_ENV === 'production') throw new Error('Demo seed data cannot be loaded in production.');
+  if (process.env.ALLOW_DEMO_SEED !== 'true') throw new Error('Set ALLOW_DEMO_SEED=true to load demo seed data.');
+  const password = process.env.SEED_PASSWORD;
+  if (!password || password.length < 16) throw new Error('SEED_PASSWORD must be at least 16 characters.');
+  return password;
+};
 
 const seedEmails = [
   'admin@mymasjid.org',
@@ -25,12 +32,13 @@ const seedEmails = [
 const hashPassword = (password: string): Promise<string> => bcrypt.hash(password, BCRYPT_ROUNDS);
 
 async function main(): Promise<void> {
+  const seedPassword = getSeedPassword();
   console.log('🌱 Seeding database...');
 
   
   await prisma.user.deleteMany({ where: { email: { in: seedEmails } } });
 
-  const passwordHash = await hashPassword(SEED_PASSWORD);
+  const passwordHash = await hashPassword(seedPassword);
 
   
   const admin = await prisma.user.create({
@@ -62,7 +70,7 @@ async function main(): Promise<void> {
       country: 'PK',
       dateOfBirth: new Date('1990-05-15'),
       idType: 'NATIONAL_ID',
-      idNumberEnc: '3520212345678',
+      idNumberEnc: encryptSensitive('3520212345678'),
       interests: ['ZAKAT', 'SADAQAH', 'EDUCATION'],
       registrationStep: 4,
       status: RegistrationStatus.ACTIVE,
@@ -144,7 +152,7 @@ async function main(): Promise<void> {
         email: 'masjid-approved@example.com',
         role: 'CHAIR',
         idType: 'NATIONAL_ID',
-        idNumberEnc: '3520111111111',
+        idNumberEnc: encryptSensitive('3520111111111'),
       },
       {
         masjidId: approvedMasjid.id,
@@ -278,8 +286,6 @@ async function main(): Promise<void> {
   });
 
   console.log('✅ Seed complete.');
-  console.log(`   All seeded accounts use password: ${SEED_PASSWORD}`);
-  console.log('   Admin login: admin@mymasjid.org');
 }
 
 main()

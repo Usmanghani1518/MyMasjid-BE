@@ -6,6 +6,9 @@ import {
   generateOtpCode,
   generateRandomToken,
   maskSensitive,
+  encryptSensitive,
+  decryptSensitive,
+  isEncryptedSensitiveValue,
 } from '@/services/crypto.service';
 
 describe('crypto.service', () => {
@@ -30,5 +33,18 @@ describe('crypto.service', () => {
   it('masks sensitive identifiers, keeping only the edges', () => {
     expect(maskSensitive('3520212345678')).toBe('35*********78');
     expect(maskSensitive('ab')).toBe('****');
+  });
+
+  it('encrypts sensitive identifiers and detects tampering', () => {
+    const key = 'unit-test-encryption-key-material-long-enough';
+    const encrypted = encryptSensitive('3520212345678', key);
+    expect(encrypted).not.toContain('3520212345678');
+    expect(isEncryptedSensitiveValue(encrypted)).toBe(true);
+    expect(decryptSensitive(encrypted, key)).toBe('3520212345678');
+    const parts = encrypted.split(':');
+    const tag = Buffer.from(parts[3], 'base64url');
+    tag[0] ^= 1;
+    parts[3] = tag.toString('base64url');
+    expect(() => decryptSensitive(parts.join(':'), key)).toThrow();
   });
 });

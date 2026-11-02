@@ -98,6 +98,7 @@ router.post(
 
 router.post(
   '/register/masjid',
+  authLimiter,
   validateRequest(masjidRegisterSchema),
   asyncHandler(async (req, res) => {
     sendSuccess(res, await registerMasjid(req.body), 'Masjid application submitted.', 201);

@@ -45,6 +45,7 @@ const consoleMailer: Mailer = {
 };
 
 let cachedSmtpMailer: Mailer | null = null;
+let cachedResendMailer: Mailer | null = null;
 
 const smtpMailer = (): Mailer => {
   if (cachedSmtpMailer) return cachedSmtpMailer;
@@ -65,8 +66,51 @@ const smtpMailer = (): Mailer => {
   return cachedSmtpMailer;
 };
 
+const resendMailer = (): Mailer => {
+  if (cachedResendMailer) return cachedResendMailer;
+
+  cachedResendMailer = {
+    sendMail: async (mail) => {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: mail.from ?? config.SMTP_FROM,
+          to: [mail.to],
+          subject: mail.subject,
+          html: mail.html,
+          text: mail.text,
+        }),
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      const responseText = await response.text();
+      let responseBody: { id?: string; message?: string } = {};
+      try {
+        responseBody = JSON.parse(responseText) as typeof responseBody;
+      } catch {
+        responseBody = {};
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          `Resend API request failed (${response.status}): ${responseBody.message ?? response.statusText}`,
+        );
+      }
+
+      return { messageId: responseBody.id };
+    },
+  };
+
+  return cachedResendMailer;
+};
+
 const getMailer = (): Mailer => {
   if (testMailer) return testMailer;
+  if (config.RESEND_API_KEY) return resendMailer();
   if (config.SMTP_HOST) return smtpMailer();
   return consoleMailer;
 };
@@ -135,12 +179,12 @@ export const queueApplicationSubmittedEmail = (
   props: { masjidName: string; referenceId?: string },
 ): void => queueDelivery(to, renderApplicationSubmitted(props));
 
-export const sendApplicationApprovedEmail = (
+export const queueApplicationApprovedEmail = (
   to: string,
   props: { masjidName: string },
-): Promise<void> => deliver(to, renderApplicationApproved(props));
+): void => queueDelivery(to, renderApplicationApproved(props));
 
-export const sendApplicationDeniedEmail = (
+export const queueApplicationDeniedEmail = (
   to: string,
   props: { masjidName: string; reasons: DenialReasonView[]; note?: string },
-): Promise<void> => deliver(to, renderApplicationDenied(props));
+): void => queueDelivery(to, renderApplicationDenied(props));

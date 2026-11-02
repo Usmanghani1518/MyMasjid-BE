@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { authenticate, AuthRequest, requireRoles } from '@/middleware/auth';
 import { validateRequest } from '@/middleware/validate';
+import { uploadLimiter } from '@/middleware/rateLimit';
 import { asyncHandler, AppError } from '@/utils/helpers';
 import { sendSuccess } from '@/utils/response';
 import * as milestone from './milestone.service';
@@ -37,7 +38,7 @@ router.get('/dashboard', asyncHandler(async (req: AuthRequest, res) => {
   sendSuccess(res, await dashboard.getProjectsDashboard(req.user!.userId), 'Projects dashboard retrieved');
 }));
 
-router.post('/:projectId/files', validateRequest(constructionOverviewSchema), fileUpload.single('file'), asyncHandler(async (req: AuthRequest, res) => {
+router.post('/:projectId/files', uploadLimiter, validateRequest(constructionOverviewSchema), fileUpload.single('file'), asyncHandler(async (req: AuthRequest, res) => {
   if (!req.file) throw new AppError('Project file is required', 400, true, ErrorCodes.FILE_REQUIRED);
   const purpose = String(req.body.purpose ?? '').toUpperCase();
   if (!projectFilePurposes.has(purpose)) throw new AppError('A valid project file purpose is required', 400, true, ErrorCodes.INVALID_VALUE);

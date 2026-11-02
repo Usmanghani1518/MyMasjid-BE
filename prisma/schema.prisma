@@ -1,5 +1,3 @@
-// Prisma Schema - MyMasjid Backend
-// https://pris.ly/d/prisma-schema-migration
 
 generator client {
   provider     = "prisma-client"
@@ -11,7 +9,6 @@ datasource db {
   provider = "postgresql"
 }
 
-// ==================== Enums ====================
 
 enum Role {
   USER
@@ -79,7 +76,6 @@ enum InvoiceStatus {
   VOID
 }
 
-// ==================== Models ====================
 
 model User {
   id        String   @id @default(uuid())
@@ -459,7 +455,6 @@ model Masjid {
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
 
-  // --- Institutional identity (step 1) ---
   registrationNumber String?
   organizationType   String?
   charityNumber      String?
@@ -475,12 +470,10 @@ model Masjid {
   latitude           Float?
   longitude          Float?
 
-  // --- Organization profile (step 2) ---
   description      String?
   missionStatement String?
   operatingHours   String?
 
-  // --- Services & compliance flags (step 3) ---
   services               String[]
   handlesZakat           Boolean  @default(false)
   handlesGiftAid         Boolean  @default(false)
@@ -488,7 +481,6 @@ model Masjid {
   acceptsOnlineDonations Boolean  @default(false)
   complianceNotes        String?
 
-  // --- Registration workflow (steps 4-5 + review) ---
   registrationStep Int                @default(0)
   status           RegistrationStatus @default(DRAFT)
   submittedAt      DateTime?

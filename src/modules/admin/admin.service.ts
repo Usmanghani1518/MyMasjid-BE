@@ -5,8 +5,8 @@ import { AppError } from '@/utils/helpers';
 import { ErrorCodes } from '@/utils/errorCodes';
 import { parsePagination, buildPaginationMeta, Paginated, toOrderBy } from '@/utils/pagination';
 import { audit, AuditActions } from '@/services/audit.service';
-import { sendApplicationApprovedEmail, sendApplicationDeniedEmail } from '@/services/email.service';
-import { maskSensitive } from '@/services/crypto.service';
+import { queueApplicationApprovedEmail, queueApplicationDeniedEmail } from '@/services/email.service';
+import { decryptSensitive, maskSensitive } from '@/services/crypto.service';
 
 const STATUS_FILTERS: string[] = ['PENDING_REVIEW', 'APPROVED', 'DENIED', 'DRAFT'];
 
@@ -29,7 +29,7 @@ const toSafeTrustee = (trustee: {
 }) => {
   let idNumberMasked: string | null = null;
   if (trustee.idNumberEnc) {
-    idNumberMasked = maskSensitive(trustee.idNumberEnc);
+    idNumberMasked = maskSensitive(decryptSensitive(trustee.idNumberEnc));
   }
 
   return {
@@ -201,10 +201,14 @@ export const approveApplication = async (
     throw new AppError('Only pending applications can be approved', 409, true, ErrorCodes.REGISTRATION_NOT_PENDING);
   }
 
-  const updated = await prisma.masjid.update({
-    where: { id: masjid.id },
-    data: { status: RegistrationStatus.APPROVED, reviewedAt: new Date(), reviewedBy: ctx.actorId, reviewNote: null },
-    include: { trustees: true, documents: true, owner: { select: { id: true, email: true, name: true, role: true } } },
+  const updated = await prisma.$transaction(async (tx) => {
+    const application = await tx.masjid.update({
+      where: { id: masjid.id },
+      data: { status: RegistrationStatus.APPROVED, reviewedAt: new Date(), reviewedBy: ctx.actorId, reviewNote: null },
+      include: { trustees: true, documents: true, owner: { select: { id: true, email: true, name: true, role: true } } },
+    });
+    await tx.user.update({ where: { id: masjid.ownerId }, data: { isActive: true } });
+    return application;
   });
 
   void audit({
@@ -219,7 +223,7 @@ export const approveApplication = async (
     userAgent: ctx.userAgent,
   });
 
-  await sendApplicationApprovedEmail(masjid.owner.email, { masjidName: masjid.name });
+  queueApplicationApprovedEmail(masjid.owner.email, { masjidName: masjid.name });
 
   return toSafeMasjid(updated);
 };
@@ -265,7 +269,7 @@ export const denyApplication = async (
     userAgent: ctx.userAgent,
   });
 
-  await sendApplicationDeniedEmail(masjid.owner.email, {
+  queueApplicationDeniedEmail(masjid.owner.email, {
     masjidName: masjid.name,
     reasons: input.reasons,
     note: input.note,

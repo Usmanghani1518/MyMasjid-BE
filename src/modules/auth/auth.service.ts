@@ -14,7 +14,8 @@ import {
 import { Role } from '@/generated/prisma/enums';
 import { OtpPurpose, RegistrationStatus } from '@/generated/prisma/enums';
 import * as otpService from '@/services/otp.service';
-import { generateRandomToken, hashToken } from '@/services/crypto.service';
+import { encryptSensitive, generateRandomToken, hashToken } from '@/services/crypto.service';
+import type { DonorStartInput, MasjidRegisterInput, VolunteerStartInput } from './auth.schemas';
 
 export interface TokenContext {
   ipAddress?: string;
@@ -167,7 +168,7 @@ export const login = async (
   };
 };
 
-export const startDonorRegistration = async (input: any, ctx: TokenContext = {}) => {
+export const startDonorRegistration = async (input: DonorStartInput, ctx: TokenContext = {}) => {
   const email = normalizeEmail(input.email);
   const existing = await findExistingRegistration(email);
   if (existing && existing.role !== 'donor') throw pendingRegistration(existing.role, existing.id, email);
@@ -220,7 +221,7 @@ export const startDonorRegistration = async (input: any, ctx: TokenContext = {})
   return { pendingRegistrationId: pendingId('donor', user.id), email, otpLength: 6, resendAvailableInSeconds: 57 };
 };
 
-export const startVolunteerRegistration = async (input: any, ctx: TokenContext = {}) => {
+export const startVolunteerRegistration = async (input: VolunteerStartInput, ctx: TokenContext = {}) => {
   const email = normalizeEmail(input.email);
   const existing = await findExistingRegistration(email);
   if (existing && existing.role !== 'volunteer') throw pendingRegistration(existing.role, existing.id, email);
@@ -306,7 +307,7 @@ export const resendRegistrationOtp = async (pendingRegistrationId: string, expec
   return { pendingRegistrationId, otpLength: 6, resendAvailableInSeconds: expectedRole === 'donor' ? 57 : 120 };
 };
 
-export const registerMasjid = async (input: any) => {
+export const registerMasjid = async (input: MasjidRegisterInput) => {
   const email = normalizeEmail(input.email);
   const existing = await findExistingRegistration(email);
   if (existing) throw pendingRegistration(existing.role, existing.id, email);
@@ -336,7 +337,7 @@ export const registerMasjid = async (input: any) => {
               fullName: input.trustee.fullName,
               email,
               role: input.trustee.position,
-              idNumberEnc: input.trustee.idNumber,
+              idNumberEnc: encryptSensitive(input.trustee.idNumber),
             },
           },
         },
@@ -387,10 +388,20 @@ export const resetPassword = async (passwordResetId: string, token: string, pass
   const reset = await prisma.passwordReset.findUnique({ where: { id } });
   if (!reset || reset.usedAt || !reset.tokenHash || reset.tokenHash !== hashToken(token)) throw new ContractError('Reset token expired.', 400, 'RESET_TOKEN_EXPIRED');
   if (!reset.expiresAt || reset.expiresAt < new Date()) throw new ContractError('Reset token expired.', 400, 'RESET_TOKEN_EXPIRED');
-  await prisma.$transaction([
-    prisma.user.update({ where: { email: reset.email }, data: { password: await hashPassword(passwordValue) } }),
-    prisma.passwordReset.update({ where: { id }, data: { usedAt: new Date() } }),
-  ]);
+  const tokenHash = hashToken(token);
+  const now = new Date();
+  const passwordHash = await hashPassword(passwordValue);
+  await prisma.$transaction(async (tx) => {
+    const consumed = await tx.passwordReset.updateMany({
+      where: { id, usedAt: null, tokenHash, expiresAt: { gt: now } },
+      data: { usedAt: now },
+    });
+    if (consumed.count !== 1) throw new ContractError('Reset token expired.', 400, 'RESET_TOKEN_EXPIRED');
+    const user = await tx.user.findUnique({ where: { email: reset.email }, select: { id: true } });
+    if (!user) throw new ContractError('Reset token expired.', 400, 'RESET_TOKEN_EXPIRED');
+    await tx.user.update({ where: { id: user.id }, data: { password: passwordHash } });
+    await tx.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: now } });
+  });
   return { email: reset.email };
 };
 

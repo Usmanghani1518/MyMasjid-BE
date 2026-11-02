@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { authenticate, AuthRequest, requireRoles } from '@/middleware/auth';
 import { validateRequest } from '@/middleware/validate';
+import { uploadLimiter } from '@/middleware/rateLimit';
 import { asyncHandler, AppError } from '@/utils/helpers';
 import { ErrorCodes } from '@/utils/errorCodes';
 import { sendSuccess } from '@/utils/response';
@@ -22,7 +23,7 @@ const upload = multer({
   },
 });
 
-router.post('/media', upload.single('file'), asyncHandler(async (req: AuthRequest, res) => {
+router.post('/media', uploadLimiter, upload.single('file'), asyncHandler(async (req: AuthRequest, res) => {
   if (!req.file) throw new AppError('Media file is required', 400, true, ErrorCodes.FILE_REQUIRED);
   await service.ensureMasjidOwner(req.user!.userId);
   const result = await uploadCampaignMedia(req.file.buffer, req.file.mimetype);

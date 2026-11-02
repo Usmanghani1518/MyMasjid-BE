@@ -14,6 +14,16 @@ npm run dev
 
 Docs: `http://localhost:3000/api/v1/docs`
 
+`db:push` is for a local development database. Use `npm run db:migrate:deploy` to apply committed migrations in production.
+
+## Sensitive identifiers
+
+Trustee ID numbers are encrypted with AES-256-GCM before storage. Generate a unique key with `openssl rand -hex 32`, set it as `ENCRYPTION_KEY` in each environment, and keep it stable so existing values can be decrypted for masking.
+
+To encrypt existing plaintext IDs, take a database backup first, then run `CONFIRM_SENSITIVE_DATA_ENCRYPTION=true npm run db:encrypt-sensitive` against the intended database. The operation is idempotent and does not print identifier values.
+
+Demo seed data deletes and recreates its sample accounts. Run it only against a local development database with `ALLOW_DEMO_SEED=true` and a unique `SEED_PASSWORD` of at least 16 characters. The seed command refuses to run when `NODE_ENV=production`.
+
 ## Current Auth Flow
 
 Frontend-facing auth endpoints are available under `/api/auth`:
@@ -35,7 +45,8 @@ Frontend-facing auth endpoints are available under `/api/auth`:
 
 ## Email
 
-Email uses SMTP when `SMTP_HOST` is set. For Gmail, use a Google App Password:
+When `RESEND_API_KEY` is set, email uses the Resend HTTPS API. Otherwise, the app
+uses SMTP when `SMTP_HOST` is set. For Gmail SMTP, use a Google App Password:
 
 ```env
 SMTP_HOST=smtp.gmail.com
@@ -45,17 +56,29 @@ SMTP_PASS=your-google-app-password
 SMTP_FROM="MyMasjid <your-gmail-address@gmail.com>"
 ```
 
-Without SMTP settings, development falls back to console email logging.
+On Render Free, use Resend's HTTPS API because outbound SMTP ports are blocked:
+
+```env
+RESEND_API_KEY=re_your_resend_api_key
+SMTP_FROM="MyMasjid <no-reply@your-verified-domain.org>"
+```
+
+Create a Resend API key and verify the sending domain first. When `RESEND_API_KEY`
+is set, the app uses Resend; otherwise it uses configured SMTP. Resend delivery
+uses HTTPS and does not require SMTP credentials.
+
+Without either provider configured, development falls back to console email logging.
 
 ## Security
 
 - Passwords are hashed with `bcrypt`.
 - Access tokens are signed JWTs.
 - Refresh tokens and password reset tokens are opaque random strings. Only SHA-256 hashes are stored.
-- OTP codes are random 6-digit values. Only hashes are stored.
+- OTP codes are random 6-digit values. Keyed HMAC hashes are stored.
+- Trustee ID numbers are encrypted at rest and masked in admin responses.
 - Admin compliance responses mask sensitive trustee ID values.
 
-`crypto.service.ts` is not replacing JWT or bcrypt. It only provides small helpers that JWT/bcrypt do not provide: secure random OTP/token generation, SHA-256 hashing for opaque tokens/OTPs, and masking.
+`crypto.service.ts` provides secure random token generation, token hashing, OTP HMAC hashing, sensitive-value encryption, and masking.
 
 ## Services
 
@@ -74,10 +97,12 @@ See `.env.example`. Main variables:
 | -------------------------- | --------------------------------------------------------------------- |
 | `DATABASE_URL`             | PostgreSQL connection string                                          |
 | `JWT_SECRET`               | Signs access tokens                                                   |
+| `ENCRYPTION_KEY`           | Encrypts sensitive IDs; retain the same key to decrypt existing values |
 | `REFRESH_TOKEN_EXPIRES_IN` | Refresh token lifetime                                                |
 | `OTP_*`                    | OTP length, expiry, cooldown, resend limit, lockout                   |
 | `CORS_ORIGIN`              | Allowed frontend origins                                              |
 | `SMTP_*`                   | Gmail or other SMTP transport                                         |
+| `RESEND_API_KEY`           | Optional Resend HTTPS email API key; takes priority over SMTP          |
 | `TEST_DATABASE_URL`        | Optional integration-test schema                                      |
 | `LOG_LEVEL`                | Minimum JSON log level in production (`info` is recommended)          |
 | `PRISMA_QUERY_LOGS`        | Enables verbose SQL query logs; keep `false` unless debugging briefly |

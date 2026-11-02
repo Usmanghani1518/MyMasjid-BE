@@ -13,8 +13,8 @@ const envSchema = z.object({
   
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
   JWT_EXPIRES_IN: z.string().default('7d'),
-  REFRESH_TOKEN_SECRET: z.string().optional(),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('30d'),
+  ENCRYPTION_KEY: z.string().min(32).optional(),
 
   
   OTP_LENGTH: z.coerce.number().default(6),
@@ -32,6 +32,7 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
   SMTP_FROM: z.string().default('MyMasjid <no-reply@mymasjid.org>'),
   SMTP_CONNECTION_TIMEOUT_MS: z.coerce.number().default(5000),
   SMTP_GREETING_TIMEOUT_MS: z.coerce.number().default(5000),
@@ -47,12 +48,20 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   PRISMA_QUERY_LOGS: z.coerce.boolean().default(false),
   ENABLE_API_DOCS: z.coerce.boolean().default(true),
+}).superRefine((env, context) => {
+  if (env.NODE_ENV !== 'test' && !env.ENCRYPTION_KEY) {
+    context.addIssue({
+      code: 'custom',
+      path: ['ENCRYPTION_KEY'],
+      message: 'ENCRYPTION_KEY is required outside tests',
+    });
+  }
 });
 
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error('❌ Invalid environment variables:', parsed.error.flatten().fieldErrors);
+  process.stderr.write(`Invalid environment variables: ${JSON.stringify(parsed.error.flatten().fieldErrors)}\n`);
   process.exit(1);
 }
 

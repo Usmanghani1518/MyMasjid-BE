@@ -111,13 +111,17 @@ export const rotateRefreshToken = async (
 
   const next = createRefreshToken(existing.userId, ctx);
 
-  await prisma.$transaction([
-    prisma.refreshToken.update({
-      where: { id: existing.id },
-      data: { revokedAt: new Date(), replacedByToken: next.tokenHash },
-    }),
-    prisma.refreshToken.create({ data: next.db }),
-  ]);
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    const consumed = await tx.refreshToken.updateMany({
+      where: { id: existing.id, tokenHash, revokedAt: null, expiresAt: { gt: now } },
+      data: { revokedAt: now, replacedByToken: next.tokenHash },
+    });
+    if (consumed.count !== 1) {
+      throw new AppError('Refresh token has already been used', 401, true, ErrorCodes.REFRESH_TOKEN_REVOKED);
+    }
+    await tx.refreshToken.create({ data: next.db });
+  });
 
   void audit({
     action: AuditActions.TOKEN_REFRESHED,
